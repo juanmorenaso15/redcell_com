@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 import threading
 import time
 import urllib.parse
@@ -14,7 +15,28 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 logger = logging.getLogger("whatsapp_client")
 
-CHROME_BIN = os.getenv("CHROME_BIN", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+
+def _resolver_chrome_bin() -> str:
+    env_bin = os.getenv("CHROME_BIN", "").strip()
+    if env_bin and os.path.exists(env_bin):
+        return env_bin
+    for candidato in (
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    ):
+        if os.path.exists(candidato):
+            return candidato
+    encontrado = (
+        shutil.which("chromium")
+        or shutil.which("chromium-browser")
+        or shutil.which("google-chrome")
+    )
+    return encontrado or env_bin
+
+
+CHROME_BIN = _resolver_chrome_bin()
 CHROMEDRIVER_BIN = os.getenv("CHROMEDRIVER_BIN", "")
 
 WHATSAPP_URL = "https://web.whatsapp.com"
@@ -83,8 +105,6 @@ class WhatsAppWebClient:
         self._esperar_sesion_o_qr()
 
     def reiniciar_sesion(self):
-        import shutil
-
         with self._lock:
             if self.driver is not None:
                 try:

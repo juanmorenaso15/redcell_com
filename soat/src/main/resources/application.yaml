@@ -46,4 +46,4 @@ whatsapp:
   default-country-code: ${WHATSAPP_DEFAULT_COUNTRY_CODE:57}
 
 server:
-  port: 8080
+  port: ${PORT:8080}

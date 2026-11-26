@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: redcell-whatsapp-ms
+    runtime: docker
+    dockerContext: pg-ms-whastapp-config
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: HEADLESS
+        value: "true"
+      - key: WHATSAPP_DEFAULT_COUNTRY_NAME
+        value: Colombia
+      - key: CHROME_PROFILE_DIR
+        value: /app/data/chrome-profile
+      - key: QR_PATH
+        value: /app/data/qr.png
+
+  - type: web
+    name: redcell-soat-api
+    runtime: docker
+    dockerContext: soat
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: SUPABASE_DB_URL
+        sync: false
+      - key: SUPABASE_DB_USER
+        sync: false
+      - key: SUPABASE_DB_PASSWORD
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: WHATSAPP_SERVICE_URL
+        sync: false
+      - key: WHATSAPP_DEFAULT_COUNTRY_CODE
+        value: "57"

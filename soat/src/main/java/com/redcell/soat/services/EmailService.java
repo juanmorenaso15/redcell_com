@@ -419,20 +419,20 @@ public class EmailService {
                                         <div class="amounts-box">
                                             <div class="amount-row">
                                                 <span>Valor SOAT: </span>
-                                                <strong>$%s</strong>
+                                                <strong> $%s</strong>
                                             </div>
                                             <div class="amount-row">
                                                 <span>Uso de plataforma: </span>
-                                                <strong>$%s</strong>
+                                                <strong> $%s</strong>
                                             </div>
                                             <div class="amount-row total-row">
                                                 <span>Total a pagar: </span>
-                                                <span>$%s</span>
+                                                <span> $%s</span>
                                             </div>
                                         </div>
 
                                         <p class="contact-note">
-                                            Atendido por Yhan Alejandro Moreno Gonzalez <br><br>WhatsApp: 311 703 4142 <br><br>Calle 23 No 15-35 (Ventanilla verde), Armenia, Quindío.
+                                            Atendido por: Yhan Alejandro Moreno Gonzalez <br><br>WhatsApp: 311 703 4142 <br><br>Calle 23 No 15-35 (Por Ventanilla verde) - Armenia, Quindío.
                                         </p>
                                     </div>
                                     <div class="footer">
