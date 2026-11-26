@@ -9,15 +9,24 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import com.redcell.soat.entity.HistorialRecordatorioSoat;
 import com.redcell.soat.entity.Poliza;
+import com.redcell.soat.repository.HistorialRecordatorioSoatRepository;
+import com.redcell.soat.repository.PolizaRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class NotificacionSoatService {
+
+    private final PolizaRepository polizaRepository;
+    private final HistorialRecordatorioSoatRepository historialRepository;    
 
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -147,5 +156,57 @@ private String formatearMonedaExcel(BigDecimal valor) {
 
     public static String obtenerFechaFormateada(LocalDate fecha) {
         return fecha != null ? fecha.format(FORMATO_FECHA) : "";
+    }
+
+    @Async("notificacionesExecutor")
+    public void encolarNotificacionPoliza(
+            Long polizaId,
+            String telefonoOverride,
+            String emailOverride,
+            boolean enviarWhatsapp,
+            boolean enviarEmail,
+            String etiquetaPlazo,
+            String tipoRecordatorio,
+            LocalDate fechaVencimiento) {
+
+        try {
+            Poliza poliza = polizaRepository.findById(polizaId).orElse(null);
+            if (poliza == null) {
+                log.warn("No se encontró la póliza {} para notificación asíncrona", polizaId);
+                return;
+            }
+
+            Map<String, Object> res = notificarPolizaConEtapa(
+                    poliza,
+                    telefonoOverride,
+                    emailOverride,
+                    enviarWhatsapp,
+                    enviarEmail,
+                    etiquetaPlazo
+            );
+
+            if (tipoRecordatorio != null && fechaVencimiento != null) {
+                boolean wsOk = Boolean.TRUE.equals(res.get("whatsappEnviado"));
+                boolean mailOk = Boolean.TRUE.equals(res.get("emailEnviado"));
+
+                HistorialRecordatorioSoat historial = historialRepository
+                        .findByPolizaIdAndTipoRecordatorioAndFechaVencimiento(
+                                poliza.getId(),
+                                tipoRecordatorio,
+                                fechaVencimiento
+                        )
+                        .orElseGet(HistorialRecordatorioSoat::new);
+
+                historial.setPolizaId(poliza.getId());
+                historial.setPlaca(poliza.getPlaca());
+                historial.setTipoRecordatorio(tipoRecordatorio);
+                historial.setFechaVencimiento(fechaVencimiento);
+                historial.setEnviadoWhatsapp(wsOk);
+                historial.setEnviadoEmail(mailOk);
+                historialRepository.save(historial);
+            }
+        } catch (Exception e) {
+            log.error("Error procesando notificación asíncrona para póliza {}: {}", polizaId, e.getMessage(), e);
+        }
     }
 }

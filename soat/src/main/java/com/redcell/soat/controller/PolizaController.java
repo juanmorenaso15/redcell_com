@@ -1,6 +1,7 @@
 package com.redcell.soat.controller;
 
 import java.time.LocalDate;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -86,7 +87,7 @@ public class PolizaController {
     }
 
     // --- NOTIFICACIONES ---
-    
+
     @PostMapping("/{id}/notificar")
     public ResponseEntity<Map<String, Object>> notificarPoliza(
             @PathVariable Long id,
@@ -99,8 +100,20 @@ public class PolizaController {
         boolean sendWs = (req == null) || req.getWhatsapp() == null || req.getWhatsapp();
         boolean sendMail = (req == null) || req.getGmail() == null || req.getGmail();
 
-        Map<String, Object> resultado = notificacionSoatService.notificarPoliza(poliza, tel, mail, sendWs, sendMail);
-        return ResponseEntity.ok(resultado);
+        // Encolamos la notificación para que se envíe en segundo plano
+        notificacionSoatService.encolarNotificacionPoliza(
+                poliza.getId(), tel, mail, sendWs, sendMail, null, null, null
+        );
+
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("estado", "ENCOLADO");
+        respuesta.put("mensaje", "Notificación encolada para envío en segundo plano");
+        respuesta.put("polizaId", poliza.getId());
+        respuesta.put("placa", poliza.getPlaca());
+        respuesta.put("whatsapp", sendWs);
+        respuesta.put("gmail", sendMail);
+
+        return ResponseEntity.accepted().body(respuesta);
     }
 
     @PostMapping("/recordatorios/ejecutar")

@@ -10,7 +10,6 @@ import java.util.Map;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import com.redcell.soat.entity.HistorialRecordatorioSoat;
 import com.redcell.soat.entity.Poliza;
 import com.redcell.soat.repository.HistorialRecordatorioSoatRepository;
 import com.redcell.soat.repository.PolizaRepository;
@@ -45,12 +44,15 @@ public class RecordatorioSoatScheduler {
                 ? tipoForzado.trim().toUpperCase()
                 : null;
 
-        log.info("Ejecutando recordatorios SOAT -> fechaBase={}, tipoForzado={}, ignorarHistorial={}",
+        log.info("Encolando recordatorios SOAT -> fechaBase={}, tipoForzado={}, ignorarHistorial={}",
                 fechaBase, tipoNormalizado, ignorarHistorial);
 
         List<Poliza> polizasActivas = polizaRepository.findByActivoTrue();
-        List<Map<String, Object>> detalles = new ArrayList<>();
-        int enviadosOk = 0;
+        
+        // ✅ CORRECCIÓN AQUÍ: Se especifica el genérico completo
+        List<Map<String, Object>> detalles = new ArrayList<>(); 
+        
+        int encolados = 0;
         int omitidos = 0;
 
         for (Poliza poliza : polizasActivas) {
@@ -87,43 +89,23 @@ public class RecordatorioSoatScheduler {
             }
 
             String etiquetaLegible = etiquetaParaMensaje(tipoRecordatorio);
-            Map<String, Object> res = notificacionSoatService.notificarPolizaConEtapa(
-                    poliza,
+            notificacionSoatService.encolarNotificacionPoliza(
+                    poliza.getId(),
                     null,
                     null,
                     true,
                     false,
-                    etiquetaLegible
+                    etiquetaLegible,
+                    tipoRecordatorio,
+                    poliza.getHasta()
             );
 
-            boolean wsOk = Boolean.TRUE.equals(res.get("whatsappEnviado"));
-            boolean mailOk = Boolean.TRUE.equals(res.get("emailEnviado"));
-            if (wsOk || mailOk) {
-                enviadosOk++;
-            }
-
-            HistorialRecordatorioSoat historial = historialRepository
-                    .findByPolizaIdAndTipoRecordatorioAndFechaVencimiento(
-                            poliza.getId(),
-                            tipoRecordatorio,
-                            poliza.getHasta()
-                    )
-                    .orElseGet(HistorialRecordatorioSoat::new);
-
-            historial.setPolizaId(poliza.getId());
-            historial.setPlaca(poliza.getPlaca());
-            historial.setTipoRecordatorio(tipoRecordatorio);
-            historial.setFechaVencimiento(poliza.getHasta());
-            historial.setEnviadoWhatsapp(wsOk);
-            historial.setEnviadoEmail(mailOk);
-            historialRepository.save(historial);
-
+            encolados++;
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("polizaId", poliza.getId());
             item.put("placa", poliza.getPlaca());
             item.put("tipoRecordatorio", tipoRecordatorio);
-            item.put("whatsappEnviado", wsOk);
-            item.put("emailEnviado", mailOk);
+            item.put("estado", "ENCOLADO");
             detalles.add(item);
         }
 
@@ -132,7 +114,7 @@ public class RecordatorioSoatScheduler {
         resumen.put("tipoForzado", tipoNormalizado);
         resumen.put("ignorarHistorial", ignorarHistorial);
         resumen.put("totalEvaluadas", detalles.size());
-        resumen.put("enviadosOk", enviadosOk);
+        resumen.put("encolados", encolados);
         resumen.put("omitidos", omitidos);
         resumen.put("detalles", detalles);
         return resumen;
