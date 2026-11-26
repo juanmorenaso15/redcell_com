@@ -1,0 +1,61 @@
+# ==========================================
+# SECRETOS Y VARIABLES DE ENTORNO
+# ==========================================
+.env
+*.env
+.env.*
+!.env.example
+
+# ==========================================
+# WHATSAPP CONFIG / PERFIL DE CHROME (CRÍTICO)
+# ==========================================
+pg-ms-whastapp-config/chrome-profile/
+pg-ms-whastapp-config/data/
+**/chrome-profile/
+
+# ==========================================
+# PYTHON (pg-ms-whastapp-config)
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# ==========================================
+# JAVA / MAVEN / SPRING BOOT (soat)
+# ==========================================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/
+mvnw
+mvnw.cmd
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# ==========================================
+# IDEs Y EDITORES
+# ==========================================
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# ==========================================
+# SISTEMAS OPERATIVOS (macOS / Windows)
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db

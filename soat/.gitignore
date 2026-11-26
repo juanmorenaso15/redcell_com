@@ -1,0 +1,49 @@
+# ==========================================
+# ENTORNO Y SECRETOS (¡NO SUBIR A GITHUB!)
+# ==========================================
+.env
+*.env
+.env.local
+
+# ==========================================
+# JAVA / SPRING BOOT
+# ==========================================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+HELP.md
+.mvn/
+mvnw
+mvnw.cmd
+
+# ==========================================
+# INTELIJ IDEA
+# ==========================================
+.idea/
+*.iws
+*.iml
+*.ipr
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# ==========================================
+# VISUAL STUDIO CODE
+# ==========================================
+.vscode/
+
+# ==========================================
+# SISTEMAS OPERATIVOS
+# ==========================================
+.DS_Store
+Thumbs.db
+
+# ==========================================
+# LOGS
+# ==========================================
+*.log

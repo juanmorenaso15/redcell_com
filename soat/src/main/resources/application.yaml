@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: redcell-soat
+  
+  # --- NUEVO: Configuración para aceptar archivos grandes ---
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 15MB
+      max-request-size: 15MB
+  # ---------------------------------------------------------
+
+  datasource:
+    url: ${SUPABASE_DB_URL}
+    username: ${SUPABASE_DB_USER}
+    password: ${SUPABASE_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:no-reply@redcell.uk}
+    password: ${MAIL_PASSWORD:default}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+jwt:
+  secret: ${JWT_SECRET}
+
+whatsapp:
+  service:
+    url: ${WHATSAPP_SERVICE_URL:http://localhost:8095}
+  default-country-code: ${WHATSAPP_DEFAULT_COUNTRY_CODE:57}
+
+server:
+  port: 8080
