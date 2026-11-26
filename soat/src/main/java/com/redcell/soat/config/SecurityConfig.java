@@ -33,6 +33,7 @@ public class SecurityConfig {
                 // Rutas públicas (Auth y la subida de PDFs por ahora)
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/polizas/upload").permitAll() 
+                .requestMatchers("/api/health").permitAll()
                 // Cualquier otra ruta requiere autenticación
                 .anyRequest().authenticated()
             )
