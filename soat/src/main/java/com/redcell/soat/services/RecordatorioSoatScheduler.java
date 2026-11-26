@@ -10,6 +10,7 @@ import java.util.Map;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import com.redcell.soat.entity.HistorialRecordatorioSoat;
 import com.redcell.soat.entity.Poliza;
 import com.redcell.soat.repository.HistorialRecordatorioSoatRepository;
 import com.redcell.soat.repository.PolizaRepository;
@@ -44,14 +45,12 @@ public class RecordatorioSoatScheduler {
                 ? tipoForzado.trim().toUpperCase()
                 : null;
 
-        log.info("Encolando recordatorios SOAT -> fechaBase={}, tipoForzado={}, ignorarHistorial={}",
+        log.info("Evaluando recordatorios SOAT (email automático) -> fechaBase={}, tipoForzado={}, ignorarHistorial={}",
                 fechaBase, tipoNormalizado, ignorarHistorial);
 
         List<Poliza> polizasActivas = polizaRepository.findByActivoTrue();
-        
-        // ✅ CORRECCIÓN AQUÍ: Se especifica el genérico completo
-        List<Map<String, Object>> detalles = new ArrayList<>(); 
-        
+        List<Map<String, Object>> detalles = new ArrayList<>();
+
         int encolados = 0;
         int omitidos = 0;
 
@@ -68,22 +67,34 @@ public class RecordatorioSoatScheduler {
                 continue;
             }
 
-            boolean yaEnviado = !ignorarHistorial && historialRepository
+            HistorialRecordatorioSoat historial = historialRepository
                     .findByPolizaIdAndTipoRecordatorioAndFechaVencimiento(
                             poliza.getId(),
                             tipoRecordatorio,
                             poliza.getHasta()
                     )
-                    .map(h -> Boolean.TRUE.equals(h.getEnviadoWhatsapp()) || Boolean.TRUE.equals(h.getEnviadoEmail()))
-                    .orElse(false);
+                    .orElseGet(() -> {
+                        HistorialRecordatorioSoat nuevo = new HistorialRecordatorioSoat();
+                        nuevo.setPolizaId(poliza.getId());
+                        nuevo.setPlaca(poliza.getPlaca());
+                        nuevo.setTipoRecordatorio(tipoRecordatorio);
+                        nuevo.setFechaVencimiento(poliza.getHasta());
+                        nuevo.setEnviadoWhatsapp(false);
+                        nuevo.setEnviadoEmail(false);
+                        return historialRepository.save(nuevo);
+                    });
 
-            if (yaEnviado) {
+            boolean emailYaEnviado = Boolean.TRUE.equals(historial.getEnviadoEmail());
+
+            if (!ignorarHistorial && emailYaEnviado) {
                 omitidos++;
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("polizaId", poliza.getId());
                 item.put("placa", poliza.getPlaca());
                 item.put("tipoRecordatorio", tipoRecordatorio);
-                item.put("estado", "OMITIDO_YA_ENVIADO");
+                item.put("enviadoEmail", true);
+                item.put("enviadoWhatsapp", Boolean.TRUE.equals(historial.getEnviadoWhatsapp()));
+                item.put("estado", "OMITIDO_EMAIL_YA_ENVIADO");
                 detalles.add(item);
                 continue;
             }
@@ -93,8 +104,8 @@ public class RecordatorioSoatScheduler {
                     poliza.getId(),
                     null,
                     null,
-                    true,
                     false,
+                    true,
                     etiquetaLegible,
                     tipoRecordatorio,
                     poliza.getHasta()
@@ -105,7 +116,7 @@ public class RecordatorioSoatScheduler {
             item.put("polizaId", poliza.getId());
             item.put("placa", poliza.getPlaca());
             item.put("tipoRecordatorio", tipoRecordatorio);
-            item.put("estado", "ENCOLADO");
+            item.put("estado", "ENCOLADO_EMAIL");
             detalles.add(item);
         }
 
@@ -120,7 +131,7 @@ public class RecordatorioSoatScheduler {
         return resumen;
     }
 
-    private String resolverEtapaRecordatorio(LocalDate hoy, LocalDate vence) {
+    public String resolverEtapaRecordatorio(LocalDate hoy, LocalDate vence) {
         if (hoy.equals(vence.minusMonths(1))) {
             return "MES_1";
         }
@@ -136,8 +147,24 @@ public class RecordatorioSoatScheduler {
         return null;
     }
 
-    private String etiquetaParaMensaje(String tipoRecordatorio) {
-        return switch (tipoRecordatorio) {
+    public LocalDate fechaProgramadaEtapa(String tipoRecordatorio, LocalDate vence) {
+        if (tipoRecordatorio == null || vence == null) {
+            return null;
+        }
+        return switch (tipoRecordatorio.toUpperCase()) {
+            case "MES_1" -> vence.minusMonths(1);
+            case "DIAS_5" -> vence.minusDays(5);
+            case "DIA_1" -> vence.minusDays(1);
+            case "HOY" -> vence;
+            default -> null;
+        };
+    }
+
+    public String etiquetaParaMensaje(String tipoRecordatorio) {
+        if (tipoRecordatorio == null) {
+            return "";
+        }
+        return switch (tipoRecordatorio.toUpperCase()) {
             case "MES_1" -> "Falta 1 mes para el vencimiento";
             case "DIAS_5" -> "Faltan 5 días para el vencimiento";
             case "DIA_1" -> "Falta 1 día para el vencimiento";

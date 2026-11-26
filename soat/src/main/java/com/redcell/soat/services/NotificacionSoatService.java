@@ -1,9 +1,12 @@
 package com.redcell.soat.services;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -26,12 +29,11 @@ import lombok.extern.slf4j.Slf4j;
 public class NotificacionSoatService {
 
     private final PolizaRepository polizaRepository;
-    private final HistorialRecordatorioSoatRepository historialRepository;    
-
-    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
+    private final HistorialRecordatorioSoatRepository historialRepository;
     private final WhatsAppNotificationService whatsAppNotificationService;
     private final EmailService emailService;
+
+    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public Map<String, Object> notificarPoliza(
             Poliza poliza,
@@ -74,6 +76,19 @@ public class NotificacionSoatService {
         }
 
         return resultado;
+    }
+
+    public String construirUrlWhatsapp(Poliza poliza, String etiquetaPlazo) {
+        if (poliza == null) {
+            return null;
+        }
+        String telefonoNormalizado = whatsAppNotificationService.normalizarTelefono(poliza.getTelefono());
+        if (telefonoNormalizado == null) {
+            return null;
+        }
+        String mensaje = construirMensajePoliza(poliza, etiquetaPlazo);
+        String encoded = URLEncoder.encode(mensaje, StandardCharsets.UTF_8).replace("+", "%20");
+        return "https://api.whatsapp.com/send?phone=" + telefonoNormalizado + "&text=" + encoded;
     }
 
     public String construirMensajePoliza(Poliza poliza) {
@@ -141,14 +156,14 @@ public class NotificacionSoatService {
         return "Vehículo";
     }
 
-private String formatearMonedaExcel(BigDecimal valor) {
-    DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.forLanguageTag("es-CO"));
-    symbols.setGroupingSeparator('.');
-    symbols.setDecimalSeparator(',');
-    DecimalFormat df = new DecimalFormat("#,##0", symbols);
-    df.setMaximumFractionDigits(0);
-    return df.format(valor);
-}
+    private String formatearMonedaExcel(BigDecimal valor) {
+        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.forLanguageTag("es-CO"));
+        symbols.setGroupingSeparator('.');
+        symbols.setDecimalSeparator(',');
+        DecimalFormat df = new DecimalFormat("#,##0", symbols);
+        df.setMaximumFractionDigits(0);
+        return df.format(valor);
+    }
 
     private String valorSeguro(String valor, String porDefecto) {
         return (valor != null && !valor.isBlank()) ? valor.trim() : porDefecto;
@@ -186,9 +201,6 @@ private String formatearMonedaExcel(BigDecimal valor) {
             );
 
             if (tipoRecordatorio != null && fechaVencimiento != null) {
-                boolean wsOk = Boolean.TRUE.equals(res.get("whatsappEnviado"));
-                boolean mailOk = Boolean.TRUE.equals(res.get("emailEnviado"));
-
                 HistorialRecordatorioSoat historial = historialRepository
                         .findByPolizaIdAndTipoRecordatorioAndFechaVencimiento(
                                 poliza.getId(),
@@ -197,12 +209,23 @@ private String formatearMonedaExcel(BigDecimal valor) {
                         )
                         .orElseGet(HistorialRecordatorioSoat::new);
 
+                boolean wsActual = Boolean.TRUE.equals(historial.getEnviadoWhatsapp());
+                boolean mailActual = Boolean.TRUE.equals(historial.getEnviadoEmail());
+
+                boolean wsFinal = enviarWhatsapp
+                        ? (Boolean.TRUE.equals(res.get("whatsappEnviado")) || wsActual)
+                        : wsActual;
+                boolean mailFinal = enviarEmail
+                        ? (Boolean.TRUE.equals(res.get("emailEnviado")) || mailActual)
+                        : mailActual;
+
                 historial.setPolizaId(poliza.getId());
                 historial.setPlaca(poliza.getPlaca());
                 historial.setTipoRecordatorio(tipoRecordatorio);
                 historial.setFechaVencimiento(fechaVencimiento);
-                historial.setEnviadoWhatsapp(wsOk);
-                historial.setEnviadoEmail(mailOk);
+                historial.setEnviadoWhatsapp(wsFinal);
+                historial.setEnviadoEmail(mailFinal);
+                historial.setEnviadoEn(LocalDateTime.now());
                 historialRepository.save(historial);
             }
         } catch (Exception e) {

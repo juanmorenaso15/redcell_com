@@ -18,10 +18,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.redcell.soat.dto.AlertaRecordatorioDTO;
 import com.redcell.soat.dto.ApiResponse;
 import com.redcell.soat.dto.NotificacionRequest;
 import com.redcell.soat.dto.PolizaUpdateDTO;
+import com.redcell.soat.entity.HistorialRecordatorioSoat;
 import com.redcell.soat.entity.Poliza;
+import com.redcell.soat.services.AlertaRecordatorioService;
 import com.redcell.soat.services.NotificacionSoatService;
 import com.redcell.soat.services.PdfExtractorService;
 import com.redcell.soat.services.PolizaService;
@@ -40,6 +43,7 @@ public class PolizaController {
     private final PolizaService polizaService;
     private final NotificacionSoatService notificacionSoatService;
     private final RecordatorioSoatScheduler recordatorioSoatScheduler;
+    private final AlertaRecordatorioService alertaRecordatorioService;
 
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse> subirPdf(@RequestParam("file") MultipartFile file) {
@@ -86,7 +90,30 @@ public class PolizaController {
         return ResponseEntity.ok(new ApiResponse("Póliza eliminada exitosamente"));
     }
 
-    // --- NOTIFICACIONES ---
+    // --- ALERTAS Y NOTIFICACIONES ---
+
+    @GetMapping("/alertas-recordatorios")
+    public ResponseEntity<List<AlertaRecordatorioDTO>> obtenerAlertasRecordatorios(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+        return ResponseEntity.ok(alertaRecordatorioService.obtenerAlertasPendientes(fecha));
+    }
+
+    @PostMapping("/{id}/recordatorios/marcar-whatsapp-enviado")
+    public ResponseEntity<Map<String, Object>> marcarWhatsappEnviado(
+            @PathVariable Long id,
+            @RequestParam String tipo) {
+
+        HistorialRecordatorioSoat actualizado = alertaRecordatorioService.marcarWhatsappEnviado(id, tipo);
+
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("estado", "WHATSAPP_MARCADO_ENVIADO");
+        respuesta.put("polizaId", actualizado.getPolizaId());
+        respuesta.put("placa", actualizado.getPlaca());
+        respuesta.put("tipoRecordatorio", actualizado.getTipoRecordatorio());
+        respuesta.put("enviadoWhatsapp", actualizado.getEnviadoWhatsapp());
+        respuesta.put("enviadoEmail", actualizado.getEnviadoEmail());
+        return ResponseEntity.ok(respuesta);
+    }
 
     @PostMapping("/{id}/notificar")
     public ResponseEntity<Map<String, Object>> notificarPoliza(
@@ -97,10 +124,9 @@ public class PolizaController {
 
         String tel = (req != null) ? req.getTelefono() : null;
         String mail = (req != null) ? req.getEmail() : null;
-        boolean sendWs = (req == null) || req.getWhatsapp() == null || req.getWhatsapp();
+        boolean sendWs = (req != null) && Boolean.TRUE.equals(req.getWhatsapp());
         boolean sendMail = (req == null) || req.getGmail() == null || req.getGmail();
 
-        // Encolamos la notificación para que se envíe en segundo plano
         notificacionSoatService.encolarNotificacionPoliza(
                 poliza.getId(), tel, mail, sendWs, sendMail, null, null, null
         );
