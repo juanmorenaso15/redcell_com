@@ -10,4 +10,5 @@ public class PerfilResponseDTO {
     private String email;
     private String username;
     private String rol;
+    private Boolean estado;
 }

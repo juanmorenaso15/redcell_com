@@ -104,7 +104,7 @@ public class AuthService {
     public List<PerfilResponseDTO> listarUsuarios() {
         return userRepository.findAll().stream()
                 .sorted(Comparator.comparing(User::getId, Comparator.nullsLast(Comparator.naturalOrder())))
-                .map(u -> new PerfilResponseDTO(u.getId(), u.getEmail(), u.getUsername(), u.getRol()))
+                .map(u -> new PerfilResponseDTO(u.getId(), u.getEmail(), u.getUsername(), u.getRol(), Boolean.TRUE.equals(u.getEstado())))
                 .toList();
     }
 
@@ -157,7 +157,7 @@ public class AuthService {
 
     public PerfilResponseDTO obtenerPerfil(String emailActual) {
         User user = buscarUsuarioActual(emailActual);
-        return new PerfilResponseDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRol());
+        return new PerfilResponseDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRol(), Boolean.TRUE.equals(user.getEstado()));
     }
 
     @Transactional
@@ -181,7 +181,7 @@ public class AuthService {
         }
 
         User guardado = userRepository.save(user);
-        return new PerfilResponseDTO(guardado.getId(), guardado.getEmail(), guardado.getUsername(), guardado.getRol());
+        return new PerfilResponseDTO(guardado.getId(), guardado.getEmail(), guardado.getUsername(), guardado.getRol(), Boolean.TRUE.equals(guardado.getEstado()));
     }
 
     private User buscarUsuarioActual(String principal) {
@@ -201,5 +201,31 @@ public class AuthService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("No se pudo inicializar SHA-256", e);
         }
+    }
+
+    @Transactional
+    public PerfilResponseDTO cambiarEstadoUsuario(Long id, boolean activo, String principalActual) {
+        User target = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+        User actor = buscarUsuarioActual(principalActual);
+        if (!activo && actor.getId().equals(target.getId())) {
+            throw new RuntimeException("No puedes desactivar tu propia cuenta");
+        }
+
+        target.setEstado(activo);
+        if (activo) {
+            target.setFailedAttempts(0);
+            target.setLockTime(null);
+        }
+
+        User guardado = userRepository.save(target);
+        return new PerfilResponseDTO(
+                guardado.getId(),
+                guardado.getEmail(),
+                guardado.getUsername(),
+                guardado.getRol(),
+                Boolean.TRUE.equals(guardado.getEstado())
+        );
     }
 }

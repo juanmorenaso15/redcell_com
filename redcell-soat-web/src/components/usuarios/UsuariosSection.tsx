@@ -39,6 +39,14 @@ const controlStyle = {
   lineHeight: '1.25rem',
 } as const;
 
+const cardHeaderStyle = {
+  padding: '1.1rem 1.75rem',
+} as const;
+
+const cellStyle = {
+  padding: '1rem 1.75rem',
+} as const;
+
 export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
   const [usuarios, setUsuarios] = useState<UsuarioSistema[]>([]);
   const [loadingUsuarios, setLoadingUsuarios] = useState(false);
@@ -204,51 +212,79 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
       </div>
 
       <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between">
-          <h3 className="text-base font-bold m-0 font-headline">Usuarios registrados</h3>
-          <span className="text-xs text-[#64748B]">
+        <div
+          style={cardHeaderStyle}
+          className="border-b border-[#E2E8F0] flex items-center justify-between gap-4"
+        >
+          <h3 className="text-base font-bold text-[#0F172A] m-0 font-headline">
+            Usuarios registrados
+          </h3>
+          <span
+            style={{ padding: '0.3rem 0.75rem' }}
+            className="rounded-full text-xs font-semibold bg-[#F1F5F9] text-[#0F172A] whitespace-nowrap"
+          >
             {loadingUsuarios ? 'Cargando...' : `${usuarios.length} usuario(s)`}
           </span>
         </div>
 
         {sinPermisosListado ? (
-          <div className="p-6 text-xs text-[#64748B]">
+          <div style={cellStyle} className="text-xs text-[#64748B]">
             Solo los usuarios con rol <strong>ADMIN</strong> pueden consultar el listado completo de usuarios.
           </div>
         ) : loadingUsuarios ? (
-          <div className="p-6 text-sm text-[#64748B]">Cargando usuarios...</div>
+          <div style={cellStyle} className="text-sm text-[#64748B]">
+            Cargando usuarios...
+          </div>
         ) : usuarios.length === 0 ? (
-          <div className="p-6 text-sm text-[#64748B]">No hay usuarios registrados.</div>
+          <div style={cellStyle} className="text-sm text-[#64748B]">
+            No hay usuarios registrados.
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
+            <table className="w-full min-w-[680px] text-left border-collapse">
               <thead>
-                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase text-[#64748B]">
-                  <th className="py-3 px-4">ID</th>
-                  <th className="py-3 px-4">Usuario</th>
-                  <th className="py-3 px-4">Correo electrónico</th>
-                  <th className="py-3 px-4">Rol</th>
+                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">
+                  <th style={cellStyle} className="w-28">
+                    ID
+                  </th>
+                  <th style={cellStyle} className="w-48">
+                    Usuario
+                  </th>
+                  <th style={cellStyle}>Correo electrónico</th>
+                  <th style={cellStyle} className="w-36 text-right">
+                    Rol
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E2E8F0]">
-                {usuarios.map((u) => (
-                  <tr key={u.id} className="hover:bg-[#F8FAFC]">
-                    <td className="py-3 px-4 font-mono text-xs text-[#64748B]">#{u.id}</td>
-                    <td className="py-3 px-4 font-semibold text-[#0F172A]">{u.username}</td>
-                    <td className="py-3 px-4 text-[#334155]">{u.email}</td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={
-                          u.rol?.toUpperCase() === 'ADMIN'
-                            ? 'inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-[#DC2626]'
-                            : 'inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F1F5F9] text-[#0F172A]'
-                        }
-                      >
-                        {u.rol}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-[#E2E8F0] text-sm">
+                {usuarios.map((u) => {
+                  const esAdmin = u.rol?.toUpperCase() === 'ADMIN';
+                  return (
+                    <tr key={u.id} className="hover:bg-[#F8FAFC] transition-colors">
+                      <td style={cellStyle} className="font-mono text-xs text-[#64748B]">
+                        #{u.id}
+                      </td>
+                      <td style={cellStyle} className="font-semibold text-[#0F172A]">
+                        {u.username}
+                      </td>
+                      <td style={cellStyle} className="text-[#334155]">
+                        {u.email}
+                      </td>
+                      <td style={cellStyle} className="text-right">
+                        <span
+                          style={{ padding: '0.28rem 0.75rem' }}
+                          className={
+                            esAdmin
+                              ? 'inline-flex items-center rounded-full text-xs font-semibold bg-red-50 text-[#DC2626]'
+                              : 'inline-flex items-center rounded-full text-xs font-semibold bg-[#F1F5F9] text-[#0F172A]'
+                          }
+                        >
+                          {u.rol}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
