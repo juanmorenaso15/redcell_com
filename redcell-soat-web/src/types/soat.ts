@@ -80,3 +80,10 @@ export interface RegistroUsuarioDTO {
   password: string;
   rol: string;
 }
+
+export interface UsuarioSistema {
+  id: number;
+  email: string;
+  username: string;
+  rol: string;
+}

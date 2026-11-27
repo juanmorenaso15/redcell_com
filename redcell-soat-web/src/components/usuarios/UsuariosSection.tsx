@@ -1,7 +1,17 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { Eye, EyeOff, KeyRound, Mail, ShieldCheck, UserPlus, Users } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  Eye,
+  EyeOff,
+  KeyRound,
+  Mail,
+  RefreshCw,
+  ShieldCheck,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import { evaluarPassword, PasswordRequisitos } from '../auth/PasswordRequisitos';
 import { api } from '../../services/api';
+import type { UsuarioSistema } from '../../types/soat';
 import { alertasSwal } from '../../utils/alerts';
 
 interface UsuariosSectionProps {
@@ -12,8 +22,16 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9._-]{4,20}$/;
 
 const ROLES_DISPONIBLES = [
-  { value: 'ADMIN', label: 'Administrador (ADMIN)', desc: 'Acceso completo al sistema y gestión de equipo.' },
-  { value: 'OPERADOR', label: 'Operador (OPERADOR)', desc: 'Gestión de pólizas SOAT, PDFs y recordatorios.' },
+  {
+    value: 'ADMIN',
+    label: 'Administrador (ADMIN)',
+    desc: 'Acceso completo al sistema, tarifas y gestión de equipo.',
+  },
+  {
+    value: 'OPERADOR',
+    label: 'Operador (OPERADOR)',
+    desc: 'Gestión de pólizas SOAT, PDFs y recordatorios.',
+  },
 ] as const;
 
 const controlStyle = {
@@ -22,6 +40,10 @@ const controlStyle = {
 } as const;
 
 export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
+  const [usuarios, setUsuarios] = useState<UsuarioSistema[]>([]);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
+  const [sinPermisosListado, setSinPermisosListado] = useState(false);
+
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [rol, setRol] = useState<string>('OPERADOR');
@@ -30,9 +52,31 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
   const [showPass, setShowPass] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [creadosRecientes, setCreadosRecientes] = useState<
-    Array<{ email: string; username: string; rol: string; hora: string }>
-  >([]);
+
+  const cargarUsuarios = useCallback(async () => {
+    setLoadingUsuarios(true);
+    try {
+      const data = await api.listarUsuarios();
+      setUsuarios(data);
+      setSinPermisosListado(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('403') || msg.toLowerCase().includes('permisos')) {
+        setSinPermisosListado(true);
+      } else {
+        await alertasSwal.error(
+          'No se pudieron cargar los usuarios',
+          msg || 'Error al consultar el listado de usuarios.'
+        );
+      }
+    } finally {
+      setLoadingUsuarios(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarUsuarios();
+  }, [cargarUsuarios]);
 
   const emailValido = EMAIL_REGEX.test(email.trim());
   const usernameValido = USERNAME_REGEX.test(username.trim());
@@ -96,19 +140,6 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
         rol,
       });
 
-      setCreadosRecientes((prev) => [
-        {
-          email: emailLimpio,
-          username: userLimpio,
-          rol,
-          hora: new Date().toLocaleTimeString('es-CO', {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-        },
-        ...prev,
-      ]);
-
       setEmail('');
       setUsername('');
       setRol('OPERADOR');
@@ -120,6 +151,7 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
         'Usuario registrado',
         res.message || `Se creó la cuenta para ${userLimpio} con rol ${rol}.`
       );
+      await cargarUsuarios();
     } catch (err: unknown) {
       await alertasSwal.error(
         'No se pudo registrar el usuario',
@@ -130,7 +162,8 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
     }
   };
 
-  const rolSeleccionado = ROLES_DISPONIBLES.find((r) => r.value === rol) ?? ROLES_DISPONIBLES[1];
+  const rolSeleccionado =
+    ROLES_DISPONIBLES.find((r) => r.value === rol) ?? ROLES_DISPONIBLES[1];
 
   return (
     <section className="space-y-6">
@@ -141,21 +174,85 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
             Gestión de equipo y accesos
           </div>
           <h2 className="text-xl font-bold mt-1 mb-0 font-headline">
-            Agregar personas al sistema
+            Usuarios del sistema ({usuarios.length})
           </h2>
           <p className="text-xs text-[#64748B] mt-1 mb-0">
-            Crea cuentas para nuevos administradores u operadores que ingresarán a RedCell SOAT.
+            Consulta los usuarios registrados y crea cuentas para administradores u operadores.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onIrAConfiguracion}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9] text-xs font-semibold text-[#0F172A] cursor-pointer"
-        >
-          <ShieldCheck size={14} className="text-[#0F172A]" />
-          Ver mi perfil
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={cargarUsuarios}
+            disabled={loadingUsuarios}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] cursor-pointer"
+          >
+            <RefreshCw size={14} className={loadingUsuarios ? 'animate-spin' : ''} />
+            Actualizar lista
+          </button>
+
+          <button
+            type="button"
+            onClick={onIrAConfiguracion}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9] text-xs font-semibold text-[#0F172A] cursor-pointer"
+          >
+            <ShieldCheck size={14} className="text-[#0F172A]" />
+            Ver mi perfil
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between">
+          <h3 className="text-base font-bold m-0 font-headline">Usuarios registrados</h3>
+          <span className="text-xs text-[#64748B]">
+            {loadingUsuarios ? 'Cargando...' : `${usuarios.length} usuario(s)`}
+          </span>
+        </div>
+
+        {sinPermisosListado ? (
+          <div className="p-6 text-xs text-[#64748B]">
+            Solo los usuarios con rol <strong>ADMIN</strong> pueden consultar el listado completo de usuarios.
+          </div>
+        ) : loadingUsuarios ? (
+          <div className="p-6 text-sm text-[#64748B]">Cargando usuarios...</div>
+        ) : usuarios.length === 0 ? (
+          <div className="p-6 text-sm text-[#64748B]">No hay usuarios registrados.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-xs uppercase text-[#64748B]">
+                  <th className="py-3 px-4">ID</th>
+                  <th className="py-3 px-4">Usuario</th>
+                  <th className="py-3 px-4">Correo electrónico</th>
+                  <th className="py-3 px-4">Rol</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E2E8F0]">
+                {usuarios.map((u) => (
+                  <tr key={u.id} className="hover:bg-[#F8FAFC]">
+                    <td className="py-3 px-4 font-mono text-xs text-[#64748B]">#{u.id}</td>
+                    <td className="py-3 px-4 font-semibold text-[#0F172A]">{u.username}</td>
+                    <td className="py-3 px-4 text-[#334155]">{u.email}</td>
+                    <td className="py-3 px-4">
+                      <span
+                        className={
+                          u.rol?.toUpperCase() === 'ADMIN'
+                            ? 'inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-[#DC2626]'
+                            : 'inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F1F5F9] text-[#0F172A]'
+                        }
+                      >
+                        {u.rol}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -164,7 +261,7 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
           noValidate
           className="lg:col-span-2 bg-white border border-[#E2E8F0] rounded-xl p-6 space-y-4"
         >
-          <h3 className="text-base font-bold m-0 font-headline">Nuevo usuario</h3>
+          <h3 className="text-base font-bold m-0 font-headline">Agregar nuevo usuario</h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -312,42 +409,30 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
           </div>
         </form>
 
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-6 space-y-4">
-          <h3 className="text-base font-bold m-0 font-headline">Creados en esta sesión</h3>
-
-          {creadosRecientes.length === 0 ? (
-            <p className="text-xs text-[#64748B] m-0">
-              Aún no has registrado nuevos usuarios durante esta sesión.
-            </p>
-          ) : (
-            <div className="space-y-2.5">
-              {creadosRecientes.map((u, idx) => (
-                <div
-                  key={`${u.email}-${idx}`}
-                  className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] text-xs space-y-1"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-bold text-[#0F172A]">{u.username}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#F1F5F9] text-[#0F172A]">
-                      {u.rol}
-                    </span>
-                  </div>
-                  <div className="text-[#64748B] truncate">{u.email}</div>
-                  <div className="text-[11px] text-[#16A34A] font-medium">
-                    Registrado a las {u.hora}
-                  </div>
-                </div>
-              ))}
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-6 space-y-4 h-fit">
+          <h3 className="text-base font-bold m-0 font-headline">Información de roles</h3>
+          <div className="space-y-2.5 text-xs">
+            <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
+              <div className="font-bold text-[#0F172A]">ADMIN</div>
+              <p className="text-[#64748B] m-0">
+                Puede ver usuarios, registrar nuevos miembros y gestionar tarifas de uso de plataforma.
+              </p>
             </div>
-          )}
+            <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
+              <div className="font-bold text-[#0F172A]">OPERADOR</div>
+              <p className="text-[#64748B] m-0">
+                Puede subir PDFs SOAT, gestionar pólizas, enviar recordatorios y ver tarifas.
+              </p>
+            </div>
+          </div>
 
           <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1 text-xs">
             <div className="font-semibold text-[#0F172A] inline-flex items-center gap-1.5">
               <KeyRound size={13} className="text-[#D97706]" />
-              Nota de acceso
+              Acceso inmediato
             </div>
             <p className="text-[#64748B] m-0">
-              El usuario podrá iniciar sesión de inmediato con su correo registrado y la contraseña asignada.
+              Cada nuevo usuario ingresa con su correo registrado y la contraseña asignada.
             </p>
           </div>
         </div>

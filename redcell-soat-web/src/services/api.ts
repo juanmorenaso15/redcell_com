@@ -6,6 +6,7 @@ import type {
   Poliza,
   PolizaUpdateDTO,
   RegistroUsuarioDTO,
+  UsuarioSistema,
 } from '../types/soat';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://redcell-soat-api.onrender.com';
@@ -191,5 +192,13 @@ export const api = {
       body: JSON.stringify(dto),
     });
     return handleResponse<{ message: string }>(res);
-  }
+  },
+
+  listarUsuarios: async (): Promise<UsuarioSistema[]> => {
+    const res = await fetch(`${API_URL}/api/auth/usuarios`, {
+      method: 'GET',
+      headers: getHeaders(true),
+    });
+    return handleResponse<UsuarioSistema[]>(res);
+  },
 };

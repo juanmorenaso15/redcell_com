@@ -1,6 +1,9 @@
 package com.redcell.soat.controller;
 
+import java.util.List;
+
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,9 +39,16 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse> register(@Valid @RequestBody RegisterRequestDTO request) {
         authService.register(request);
         return ResponseEntity.ok(new ApiResponse("Usuario registrado exitosamente"));
+    }
+
+    @GetMapping("/usuarios")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<PerfilResponseDTO>> listarUsuarios() {
+        return ResponseEntity.ok(authService.listarUsuarios());
     }
 
     @PostMapping("/forgot-password")

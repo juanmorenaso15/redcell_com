@@ -3,6 +3,7 @@ package com.redcell.soat.controller;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.springframework.format.annotation.DateTimeFormat;
@@ -48,8 +49,19 @@ public class PolizaController {
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse> subirPdf(@RequestParam("file") MultipartFile file) {
         try {
-            if (file.isEmpty()) {
+            if (file == null || file.isEmpty()) {
                 return ResponseEntity.badRequest().body(new ApiResponse("El archivo está vacío"));
+            }
+
+            String nombre = file.getOriginalFilename() != null
+                    ? file.getOriginalFilename().toLowerCase(Locale.ROOT)
+                    : "";
+            String contentType = file.getContentType() != null
+                    ? file.getContentType().toLowerCase(Locale.ROOT)
+                    : "";
+
+            if (!nombre.endsWith(".pdf") && !contentType.contains("pdf")) {
+                return ResponseEntity.badRequest().body(new ApiResponse("Solo se permiten archivos en formato PDF"));
             }
 
             Poliza poliza = pdfExtractorService.extraerDatosPdf(file);
