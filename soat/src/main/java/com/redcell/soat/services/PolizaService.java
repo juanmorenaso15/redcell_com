@@ -24,26 +24,21 @@ public class PolizaService {
     private final CalculadoraSoatService calculadoraSoatService;
     private final ConfiguracionTarifaRepository tarifaRepository;
 
-    // LISTAR TODAS (Solo las activas)
     public List<Poliza> obtenerTodas() {
         return polizaRepository.findAll().stream()
                 .filter(p -> Boolean.TRUE.equals(p.getActivo()))
                 .toList();
     }
 
-    // BUSCAR POR ID
     public Poliza obtenerPorId(Long id) {
         return polizaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Póliza no encontrada con el ID proporcionado."));
     }
 
-    // GUARDAR O RENOVAR (Desactiva las antiguas de la misma placa)
     @Transactional
     public Poliza guardarOActualizarPoliza(Poliza nuevaPoliza) {
-        // 1. Buscamos si ya existen pólizas con esa placa
         List<Poliza> polizasAnteriores = polizaRepository.findByPlaca(nuevaPoliza.getPlaca());
 
-        // 2. Si existen, las desactivamos a todas
         if (!polizasAnteriores.isEmpty()) {
             for (Poliza antigua : polizasAnteriores) {
                 antigua.setActivo(false);
@@ -51,7 +46,6 @@ public class PolizaService {
             }
         }
 
-        // 3. Marcamos la nueva como activa
         nuevaPoliza.setActivo(true);
         if (nuevaPoliza.getEdadVehiculo() == null) {
             nuevaPoliza.setEdadVehiculo(0);
@@ -60,7 +54,6 @@ public class PolizaService {
             nuevaPoliza.setCapacidadToneladas(BigDecimal.ZERO);
         }
 
-        // 4. Calculamos el precio de la nueva póliza conservando la edad calculada desde el modelo
         try {
             BigDecimal totalSoat = calculadoraSoatService.calcularTotalPagar(nuevaPoliza);
             BigDecimal tarifaPlataforma = tarifaRepository.findByActivoTrue()
@@ -77,12 +70,10 @@ public class PolizaService {
         return polizaRepository.save(nuevaPoliza);
     }
 
-    // ACTUALIZAR PARCIALMENTE Y RECALCULAR PRECIO (Para ediciones manuales)
     @Transactional
     public Poliza actualizar(Long id, PolizaUpdateDTO dto) {
         Poliza poliza = obtenerPorId(id);
 
-        // 1. Actualizar campos básicos
         if (dto.getTipoVehiculo() != null) poliza.setTipoVehiculo(dto.getTipoVehiculo());
         if (dto.getPlaca() != null) poliza.setPlaca(dto.getPlaca());
         if (dto.getPropietario() != null) poliza.setPropietario(dto.getPropietario());
@@ -94,29 +85,35 @@ public class PolizaService {
         if (dto.getCilindraje() != null) poliza.setCilindraje(dto.getCilindraje());
         if (dto.getAseguradora() != null) poliza.setAseguradora(dto.getAseguradora());
 
-        // 2. Actualizar edad y capacidad en toneladas
-        // 2. Actualizar edad, capacidad y datos de contacto
-if (dto.getEdadVehiculo() != null) poliza.setEdadVehiculo(Math.max(dto.getEdadVehiculo(), 0));
-if (dto.getCapacidadToneladas() != null) poliza.setCapacidadToneladas(dto.getCapacidadToneladas());
-if (dto.getTelefono() != null) poliza.setTelefono(dto.getTelefono());
-if (dto.getEmail() != null) poliza.setEmail(dto.getEmail());
+        if (dto.getEdadVehiculo() != null) poliza.setEdadVehiculo(Math.max(dto.getEdadVehiculo(), 0));
+        if (dto.getCapacidadToneladas() != null) poliza.setCapacidadToneladas(dto.getCapacidadToneladas());
+        if (dto.getTelefono() != null) poliza.setTelefono(dto.getTelefono());
+        if (dto.getEmail() != null) poliza.setEmail(dto.getEmail());
 
-        // 3. RECÁLCULO AUTOMÁTICO AL EDITAR
+        if (dto.getUsoPlataforma() != null) {
+            poliza.setUsoPlataforma(dto.getUsoPlataforma().max(BigDecimal.ZERO));
+        } else if (poliza.getUsoPlataforma() == null) {
+            BigDecimal tarifaDefault = tarifaRepository.findByActivoTrue()
+                    .map(ConfiguracionTarifa::getValor)
+                    .orElse(BigDecimal.ZERO);
+            poliza.setUsoPlataforma(tarifaDefault);
+        }
+
         if (poliza.getTipoVehiculo() != null) {
             try {
                 if (poliza.getEdadVehiculo() == null) poliza.setEdadVehiculo(0);
                 if (poliza.getCapacidadToneladas() == null) poliza.setCapacidadToneladas(BigDecimal.ZERO);
 
                 BigDecimal totalSoat = calculadoraSoatService.calcularTotalPagar(poliza);
+                BigDecimal usoPlataforma = poliza.getUsoPlataforma() != null
+                        ? poliza.getUsoPlataforma()
+                        : BigDecimal.ZERO;
 
-                BigDecimal tarifaPlataforma = tarifaRepository.findByActivoTrue()
-                        .map(ConfiguracionTarifa::getValor)
-                        .orElse(BigDecimal.ZERO);
+                poliza.setUsoPlataforma(usoPlataforma);
+                poliza.setTotalPagar(totalSoat.add(usoPlataforma));
 
-                poliza.setUsoPlataforma(tarifaPlataforma);
-                poliza.setTotalPagar(totalSoat.add(tarifaPlataforma));
-
-                log.info("Precio recalculado exitosamente para la póliza: {}", poliza.getPlaca());
+                log.info("Precio recalculado para póliza {}: SOAT={}, UsoPlataforma={}, Total={}",
+                        poliza.getPlaca(), totalSoat, usoPlataforma, poliza.getTotalPagar());
             } catch (Exception e) {
                 log.warn("No se pudo recalcular el precio al editar: {}", e.getMessage());
             }

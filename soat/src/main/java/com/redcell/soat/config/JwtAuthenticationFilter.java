@@ -30,7 +30,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String jwt;
         final String userEmail;
 
-        // Si no hay token o no empieza con Bearer, dejamos pasar (Spring Security lo rechazará si es ruta protegida)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -43,7 +42,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 userEmail = jwtService.extractAllClaims(jwt).get("username", String.class);
                 
                 if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    // Creamos la autenticación para que Spring sepa que el usuario es válido
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userEmail, null, null
                     );
@@ -52,7 +50,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            // Token inválido o expirado
         }
         
         filterChain.doFilter(request, response);

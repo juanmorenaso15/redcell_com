@@ -10,7 +10,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     Optional<User> findByUsername(String username);
     Optional<User> findByEmailOrUsername(String email, String username);
-    
-    // NUEVO: Buscar al usuario directamente por su token OTP
     Optional<User> findByResetToken(String resetToken);
 }

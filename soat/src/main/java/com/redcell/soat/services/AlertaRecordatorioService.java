@@ -42,7 +42,6 @@ public class AlertaRecordatorioService {
                 continue;
             }
 
-            // Evita mostrar alertas de pólizas vencidas hace más de 15 días
             if (hoy.isAfter(poliza.getHasta().plusDays(15))) {
                 continue;
             }
@@ -63,7 +62,6 @@ public class AlertaRecordatorioService {
                 boolean enviadoEmail = histOpt.map(h -> Boolean.TRUE.equals(h.getEnviadoEmail())).orElse(false);
                 boolean enviadoWhatsapp = histOpt.map(h -> Boolean.TRUE.equals(h.getEnviadoWhatsapp())).orElse(false);
 
-                // Si el WhatsApp ya fue enviado, no mostramos alerta pendiente para esta etapa
                 if (enviadoWhatsapp) {
                     continue;
                 }

@@ -15,15 +15,12 @@ public class ConfiguracionTarifa {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Nombre para identificar la tarifa (Ej: "Uso Plataforma 2026")
     @Column(nullable = false)
     private String nombre;
 
-    // El valor monetario (Ej: 15000.00)
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal valor;
 
-    // Si está activa, se usará por defecto en los SOATs nuevos
     @Column(nullable = false)
     private Boolean activo = true;
 

@@ -20,13 +20,6 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    /**
-     * Envía el correo de recuperación de contraseña con el código OTP.
-     * 
-     * @param destino Correo del usuario
-     * @param username Nombre del usuario
-     * @param token Código OTP de 6 dígitos
-     */
     public void enviarCorreoRecuperacion(String destino, String username, String token) {
         if (destino == null || destino.isBlank()) {
             throw new RuntimeException("El email del destinatario no puede estar vacío");
@@ -40,7 +33,6 @@ public class EmailService {
             helper.setTo(destino);
             helper.setSubject("Restablecimiento de contraseña - RedCell SOAT");
 
-            // Diseño HTML basado en el estilo corporativo
             String htmlContent = String.format(
                     """
                             <!DOCTYPE html>

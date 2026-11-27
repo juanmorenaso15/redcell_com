@@ -90,8 +90,6 @@ public class PolizaController {
         return ResponseEntity.ok(new ApiResponse("Póliza eliminada exitosamente"));
     }
 
-    // --- ALERTAS Y NOTIFICACIONES ---
-
     @GetMapping("/alertas-recordatorios")
     public ResponseEntity<List<AlertaRecordatorioDTO>> obtenerAlertasRecordatorios(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {

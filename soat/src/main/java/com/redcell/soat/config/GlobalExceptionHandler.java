@@ -13,7 +13,6 @@ import com.redcell.soat.dto.ErrorResponse;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // Captura los errores de lógica de negocio (ej: contraseña incorrecta, usuario existe)
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex) {
         ErrorResponse error = new ErrorResponse(
@@ -24,7 +23,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
-    // Captura los errores de validación (ej: email mal formado, contraseña débil)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
         String mensaje = ex.getBindingResult().getFieldError() != null 

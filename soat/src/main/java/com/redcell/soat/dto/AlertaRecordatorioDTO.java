@@ -14,7 +14,7 @@ public class AlertaRecordatorioDTO {
     private String telefono;
     private String email;
     private LocalDate fechaVencimiento;
-    private String tipoRecordatorio; // MES_1, DIAS_5, DIA_1, HOY
+    private String tipoRecordatorio;
     private String etiqueta;
     private LocalDate fechaProgramada;
     private long diasTranscurridos;

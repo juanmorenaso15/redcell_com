@@ -66,7 +66,6 @@ public class CalculadoraSoatService {
                 }
             }
         }
-        // 3. CARGA O MIXTO (310 - 330)
         else if (tipo.contains("CARGA") || tipo.contains("MIXTO")) {
             if (toneladas.compareTo(new BigDecimal("5")) < 0) {
                 prima = new BigDecimal("582900");
@@ -79,7 +78,6 @@ public class CalculadoraSoatService {
                 fosyga = new BigDecimal("554000");
             }
         }
-        // 4. OFICIALES ESPECIALES (410 - 430)
         else if (tipo.contains("OFICIAL")) {
             if (cc < 1500) {
                 prima = new BigDecimal("656000");
@@ -92,7 +90,6 @@ public class CalculadoraSoatService {
                 fosyga = new BigDecimal("515900");
             }
         }
-        // 5. AUTOS FAMILIARES (511 - 532)
         else if (tipo.contains("AUTOS FAMILIARES") || tipo.contains("AUTOMOVIL") || tipo.contains("AUTOMÓVIL")) {
             if (cc < 1500) {
                 if (edad <= 9) {
@@ -120,7 +117,6 @@ public class CalculadoraSoatService {
                 }
             }
         }
-        // 6. VEHÍCULOS PARA SEIS O MÁS PASAJEROS (611 - 622)
         else if (tipo.contains("SEIS") || tipo.contains("PASAJEROS")) {
             if (cc < 2500) {
                 if (edad <= 9) {
@@ -140,7 +136,6 @@ public class CalculadoraSoatService {
                 }
             }
         }
-        // 7. AUTOS DE NEGOCIOS Y TAXIS (711 - 732)
         else if (tipo.contains("NEGOCIO") || tipo.contains("TAXI")) {
             if (cc < 1500) {
                 if (edad <= 9) {
@@ -168,12 +163,10 @@ public class CalculadoraSoatService {
                 }
             }
         }
-        // 8. BUSES Y BUSETAS SERVICIO PÚBLICO URBANO (810)
         else if (tipo.contains("BUS") || tipo.contains("BUSETA")) {
             prima = new BigDecimal("441400");
             fosyga = new BigDecimal("229500");
         }
-        // 9. SERVICIO PÚBLICO INTERMUNICIPAL (910 - 920)
         else if (tipo.contains("INTERMUNICIPAL")) {
             if (cc < 10) {
                 prima = new BigDecimal("436300");
