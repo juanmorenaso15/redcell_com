@@ -1,13 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bell, CheckCircle2, ExternalLink, Plus, ShieldCheck, X } from 'lucide-react';
-import { Sidebar } from '../components/layout/Sidebar';
-import { DetallePolizaModal } from '../components/modals/DetallePolizaModal';
+import { Bell, CheckCircle2, Coins, ExternalLink, LogOut, Plus, ShieldCheck, X } from 'lucide-react';
+import { Sidebar, type SidebarSection } from '../components/layout/Sidebar';
+import {
+  construirMensajeWhatsappConEmojis,
+  DetallePolizaModal,
+} from '../components/modals/DetallePolizaModal';
 import { EditarPolizaModal } from '../components/modals/EditarPolizaModal';
 import { SubirPdfModal } from '../components/modals/SubirPdfModal';
 import { KpiCards } from '../components/polizas/KpiCards';
 import { PolizasTable, type EstadoVigenciaFilter } from '../components/polizas/PolizasTable';
+import { UsoPlataformaSection } from '../components/tarifas/UsoPlataformaSection';
 import { api } from '../services/api';
-import type { AlertaRecordatorio, Poliza, PolizaUpdateDTO } from '../types/soat';
+import type {
+  AlertaRecordatorio,
+  ConfiguracionTarifa,
+  Poliza,
+  PolizaUpdateDTO,
+} from '../types/soat';
+import { obtenerUsuarioSesion } from '../utils/auth';
 import { buildWhatsappLink, formatCOP } from '../utils/format';
 
 interface DashboardPageProps {
@@ -17,28 +27,33 @@ interface DashboardPageProps {
 export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
   const [polizas, setPolizas] = useState<Poliza[]>([]);
   const [alertas, setAlertas] = useState<AlertaRecordatorio[]>([]);
+  const [tarifas, setTarifas] = useState<ConfiguracionTarifa[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [aseguradoraFilter, setAseguradoraFilter] = useState('TODAS');
   const [tipoVehiculoFilter, setTipoVehiculoFilter] = useState('TODOS');
   const [vigenciaFilter, setVigenciaFilter] = useState<EstadoVigenciaFilter>('TODOS');
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'polizas' | 'alertas'>('polizas');
+  const [activeSection, setActiveSection] = useState<SidebarSection>('polizas');
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [viewingPoliza, setViewingPoliza] = useState<Poliza | null>(null);
   const [editingPoliza, setEditingPoliza] = useState<Poliza | null>(null);
   const [markingKey, setMarkingKey] = useState<string | null>(null);
 
+  const usuario = useMemo(() => obtenerUsuarioSesion(), []);
+
   const cargarDatos = useCallback(async () => {
     setLoading(true);
     try {
-      const [listaPolizas, listaAlertas] = await Promise.all([
+      const [listaPolizas, listaAlertas, listaTarifas] = await Promise.all([
         api.listarPolizas(),
         api.obtenerAlertas().catch(() => []),
+        api.listarTarifas().catch(() => []),
       ]);
       setPolizas(listaPolizas);
       setAlertas(listaAlertas);
+      setTarifas(listaTarifas);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error cargando datos';
       if (msg.includes('401') || msg.includes('403') || msg.toLowerCase().includes('token')) {
@@ -54,6 +69,8 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
   useEffect(() => {
     cargarDatos();
   }, [cargarDatos]);
+
+  const tarifaActiva = useMemo(() => tarifas.find((t) => Boolean(t.activo)), [tarifas]);
 
   const handleUploadPdf = async (file: File) => {
     const res = await api.subirPdf(file);
@@ -109,6 +126,63 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
     } catch (err: unknown) {
       setFeedback(err instanceof Error ? err.message : 'Error al encolar correo');
     }
+  };
+
+  const handleCreateTarifa = async (nueva: Omit<ConfiguracionTarifa, 'id'>) => {
+    await api.crearTarifa(nueva);
+    setFeedback(`Tarifa "${nueva.nombre}" guardada (${formatCOP(nueva.valor)}).`);
+    await cargarDatos();
+  };
+
+  const handleUpdateTarifa = async (id: number, datos: Partial<ConfiguracionTarifa>) => {
+    await api.actualizarTarifa(id, datos);
+    setFeedback('Configuración de uso de plataforma actualizada.');
+    await cargarDatos();
+  };
+
+  const handleDeleteTarifa = async (id: number) => {
+    if (!window.confirm('¿Eliminar esta tarifa de uso de plataforma?')) return;
+    await api.eliminarTarifa(id);
+    setFeedback('Tarifa eliminada.');
+    await cargarDatos();
+  };
+
+  const handleApplyTarifaToPolizas = async (valor: number, soloSinTarifa: boolean) => {
+    const objetivos = soloSinTarifa
+      ? polizas.filter((p) => Number(p.usoPlataforma || 0) === 0)
+      : polizas;
+
+    if (objetivos.length === 0) {
+      setFeedback('No hay pólizas pendientes con uso de plataforma en $0.');
+      return;
+    }
+
+    await Promise.all(
+      objetivos.map((p) =>
+        api.actualizarPoliza(p.id, {
+          placa: p.placa,
+          tipoVehiculo: p.tipoVehiculo,
+          marcaLinea: p.marcaLinea,
+          cilindraje: p.cilindraje,
+          aseguradora: p.aseguradora,
+          edadVehiculo: p.edadVehiculo,
+          capacidadToneladas: p.capacidadToneladas,
+          desde: p.desde,
+          hasta: p.hasta,
+          propietario: p.propietario,
+          tipoDocumento: p.tipoDocumento,
+          documento: p.documento,
+          usoPlataforma: valor,
+          telefono: p.telefono ?? '',
+          email: p.email ?? '',
+        })
+      )
+    );
+
+    setFeedback(
+      `Uso de plataforma (${formatCOP(valor)}) aplicado a ${objetivos.length} póliza(s).`
+    );
+    await cargarDatos();
   };
 
   const aseguradoras = useMemo(() => {
@@ -173,65 +247,133 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
   );
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC] text-[#0F172A] w-full">
-      <Sidebar alertasCount={alertas.length} onLogout={onUnauthorized} />
+    <div className="min-h-screen flex flex-col md:flex-row bg-[#F8FAFC] text-[#0F172A] w-full">
+      {/* Barra superior en móvil */}
+      <div className="flex md:hidden items-center justify-between gap-3 px-4 py-3 bg-white border-b border-[#E2E8F0]">
+        <div className="flex items-center gap-2 min-w-0">
+          <img
+            src="/logo-redcell.png"
+            alt="RedCell"
+            className="h-8 w-auto object-contain shrink-0"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
+          />
+          <div className="min-w-0">
+            <div className="font-bold text-sm leading-tight font-headline truncate">
+              RedCell SOAT
+            </div>
+            <div className="text-[11px] text-[#64748B] truncate">
+              {usuario.nombre} · {usuario.username}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onUnauthorized}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[#E2E8F0] bg-white text-xs font-semibold text-[#64748B] hover:text-[#DC2626] cursor-pointer shrink-0"
+        >
+          <LogOut size={14} />
+          Salir
+        </button>
+      </div>
 
-      <main className="flex-1 p-6 md:p-8 max-w-none w-full">
-        <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0F172A] m-0 font-headline">
+      <Sidebar
+        activeSection={activeSection}
+        onSelectSection={setActiveSection}
+        alertasCount={alertas.length}
+        tarifaActivaValor={tarifaActiva?.valor}
+        onLogout={onUnauthorized}
+      />
+
+      <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 max-w-none w-full">
+        <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] m-0 font-headline">
               Base de datos SOAT
             </h1>
-            <p className="text-sm text-[#64748B] mt-1 mb-0">
-              Consulta, carga PDFs, edita pólizas y gestiona recordatorios de vencimiento.
+            <p className="text-xs sm:text-sm text-[#64748B] mt-1 mb-0">
+              Consulta, carga PDFs, edita pólizas y gestiona uso de plataforma y recordatorios.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => setActiveSection('polizas')}
-              className={
-                activeSection === 'polizas'
-                  ? 'inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-semibold cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white'
-                  : 'inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-semibold cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
-              }
-            >
-              <ShieldCheck size={16} />
-              Pólizas ({polizas.length})
-            </button>
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 shrink-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveSection('polizas')}
+                className={
+                  activeSection === 'polizas'
+                    ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white'
+                    : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                }
+              >
+                <ShieldCheck size={16} className="shrink-0" />
+                Pólizas ({polizas.length})
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveSection('alertas')}
-              className={
-                activeSection === 'alertas'
-                  ? 'inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-semibold cursor-pointer border border-[#D97706] bg-[#D97706] text-white'
-                  : 'inline-flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-semibold cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
-              }
-            >
-              <Bell size={16} />
-              Alertas ({alertas.length})
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveSection('alertas')}
+                className={
+                  activeSection === 'alertas'
+                    ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#D97706] bg-[#D97706] text-white'
+                    : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                }
+              >
+                <Bell size={16} className="shrink-0" />
+                Alertas ({alertas.length})
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setUploadOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-sm font-semibold cursor-pointer border-0"
-            >
-              <Plus size={17} />
-              Subir SOAT PDF
-            </button>
+              <button
+                type="button"
+                onClick={() => setActiveSection('tarifas')}
+                className={
+                  activeSection === 'tarifas'
+                    ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#16A34A] bg-[#16A34A] text-white'
+                    : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                }
+              >
+                <Coins size={16} className="shrink-0" />
+                Uso de plataforma
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setUploadOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border-0"
+              >
+                <Plus size={16} className="shrink-0" />
+                Subir SOAT PDF
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white border border-[#E2E8F0] shadow-sm shrink-0">
+              <img
+                src="/logo-redcell.png"
+                alt={usuario.nombre}
+                className="h-8 w-8 rounded-full object-contain bg-[#F8FAFC] p-1 border border-[#E2E8F0] shrink-0"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                }}
+              />
+              <div className="leading-tight whitespace-nowrap">
+                <div className="text-xs font-bold text-[#0F172A]">{usuario.nombre}</div>
+                <div className="text-[11px] text-[#64748B]">
+                  {usuario.rol} · <span className="font-medium text-[#0F172A]">{usuario.username}</span>
+                </div>
+              </div>
+            </div>
           </div>
         </header>
 
         {feedback && (
-          <div className="mb-5 px-4 py-3 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-between text-sm">
+          <div className="mb-5 px-4 py-3 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-between gap-3 text-sm">
             <span>{feedback}</span>
             <button
               type="button"
               onClick={() => setFeedback(null)}
-              className="text-[#64748B] hover:text-[#0F172A] bg-transparent border-0 cursor-pointer"
+              className="text-[#64748B] hover:text-[#0F172A] bg-transparent border-0 cursor-pointer shrink-0"
             >
               <X size={16} />
             </button>
@@ -260,6 +402,16 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
             onEdit={(p) => setEditingPoliza(p)}
             onDelete={handleEliminar}
           />
+        ) : activeSection === 'tarifas' ? (
+          <UsoPlataformaSection
+            tarifas={tarifas}
+            polizas={polizas}
+            loading={loading}
+            onCreateTarifa={handleCreateTarifa}
+            onUpdateTarifa={handleUpdateTarifa}
+            onDeleteTarifa={handleDeleteTarifa}
+            onApplyTarifaToPolizas={handleApplyTarifaToPolizas}
+          />
         ) : (
           <section className="bg-white border border-[#E2E8F0] rounded-xl p-6">
             <div className="text-center mb-5">
@@ -279,7 +431,11 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 {alertas.map((alerta) => {
                   const key = `${alerta.polizaId}-${alerta.tipoRecordatorio}`;
-                  const waLink = buildWhatsappLink(alerta.telefono, alerta.mensajeAlerta);
+                  const polizaAsociada = polizas.find((p) => p.id === alerta.polizaId);
+                  const mensajeAlertaEmojis = polizaAsociada
+                    ? construirMensajeWhatsappConEmojis(polizaAsociada, alerta.etiqueta)
+                    : alerta.mensajeAlerta;
+                  const waLink = buildWhatsappLink(alerta.telefono, mensajeAlertaEmojis);
 
                   return (
                     <div
@@ -310,6 +466,9 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
                             href={waLink}
                             target="_blank"
                             rel="noreferrer"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(mensajeAlertaEmojis).catch(() => {});
+                            }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold"
                             style={{ textDecoration: 'none' }}
                           >

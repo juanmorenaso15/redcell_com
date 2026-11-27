@@ -7,6 +7,8 @@ import java.time.LocalDateTime;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.redcell.soat.dto.ActualizarPerfilDTO;
+import com.redcell.soat.dto.PerfilResponseDTO;
 import com.redcell.soat.dto.RegisterRequestDTO;
 import com.redcell.soat.entity.User;
 import com.redcell.soat.repository.UserRepository;
@@ -103,4 +105,35 @@ public class AuthService {
         
         userRepository.save(user);
     }
+
+    public PerfilResponseDTO obtenerPerfil(String usernameActual) {
+    User user = userRepository.findByUsername(usernameActual)
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+    return new PerfilResponseDTO(user.getId(), user.getEmail(), user.getUsername(), user.getRol());
+}
+
+@Transactional
+public PerfilResponseDTO actualizarPerfil(String usernameActual, ActualizarPerfilDTO dto) {
+    User user = userRepository.findByUsername(usernameActual)
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+
+    if (dto.getUsername() != null && !dto.getUsername().isBlank()) {
+        String nuevoUser = dto.getUsername().trim();
+        if (!nuevoUser.equals(user.getUsername()) && userRepository.findByUsername(nuevoUser).isPresent()) {
+            throw new RuntimeException("Ese nombre de usuario ya está en uso");
+        }
+        user.setUsername(nuevoUser);
+    }
+
+    if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
+        String nuevoEmail = dto.getEmail().trim();
+        if (!nuevoEmail.equalsIgnoreCase(user.getEmail()) && userRepository.findByEmail(nuevoEmail).isPresent()) {
+            throw new RuntimeException("Ese correo electrónico ya está registrado");
+        }
+        user.setEmail(nuevoEmail);
+    }
+
+    User guardado = userRepository.save(user);
+    return new PerfilResponseDTO(guardado.getId(), guardado.getEmail(), guardado.getUsername(), guardado.getRol());
+}
 }

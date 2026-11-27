@@ -92,13 +92,33 @@ export const api = {
     return handleResponse<ConfiguracionTarifa[]>(res);
   },
 
-  actualizarTarifa: async (id: number, tarifa: Partial<ConfiguracionTarifa>): Promise<ConfiguracionTarifa> => {
+  crearTarifa: async (tarifa: Omit<ConfiguracionTarifa, 'id'>): Promise<ConfiguracionTarifa> => {
+    const res = await fetch(`${API_URL}/api/configuracion-tarifas`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(tarifa),
+    });
+    return handleResponse<ConfiguracionTarifa>(res);
+  },
+
+  actualizarTarifa: async (
+    id: number,
+    tarifa: Partial<ConfiguracionTarifa>
+  ): Promise<ConfiguracionTarifa> => {
     const res = await fetch(`${API_URL}/api/configuracion-tarifas/${id}`, {
       method: 'PUT',
       headers: getHeaders(true),
       body: JSON.stringify(tarifa),
     });
     return handleResponse<ConfiguracionTarifa>(res);
+  },
+
+  eliminarTarifa: async (id: number): Promise<void> => {
+    const res = await fetch(`${API_URL}/api/configuracion-tarifas/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders(false),
+    });
+    await handleResponse(res);
   },
 
   notificarPoliza: async (

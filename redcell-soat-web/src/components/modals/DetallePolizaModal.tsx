@@ -15,7 +15,6 @@ import {
   X,
 } from 'lucide-react';
 import type { AlertaRecordatorio, Poliza } from '../../types/soat';
-import { buildWhatsappLink } from '../../utils/format';
 
 interface DetallePolizaModalProps {
   poliza: Poliza | null;
@@ -70,7 +69,7 @@ function construirDescripcionVehiculo(poliza: Poliza): string {
   return 'Vehículo';
 }
 
-function construirMensajeWhatsappConEmojis(poliza: Poliza, etiquetaPlazo?: string): string {
+export function construirMensajeWhatsappConEmojis(poliza: Poliza, etiquetaPlazo?: string): string {
   const totalPagar = Number(poliza.totalPagar || 0);
   const usoPlataforma = Number(poliza.usoPlataforma || 0);
   const valorSoatCalculado =
@@ -124,6 +123,41 @@ function construirMensajeWhatsappConEmojis(poliza: Poliza, etiquetaPlazo?: strin
   return lineas.join('\n');
 }
 
+function construirEnlaceWhatsappDirecto(telefono: string | null | undefined, mensaje: string): string | null {
+  if (!telefono) return null;
+  let digits = telefono.replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.length === 10 && digits.startsWith('3')) {
+    digits = `57${digits}`;
+  }
+  const esMovil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const baseUrl = esMovil
+    ? 'https://api.whatsapp.com/send'
+    : 'https://web.whatsapp.com/send';
+  return `${baseUrl}?phone=${digits}&text=${encodeURIComponent(mensaje)}`;
+}
+
+async function copiarAlPortapapeles(texto: string): Promise<void> {
+  try {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      await navigator.clipboard.writeText(texto);
+      return;
+    }
+  } catch {
+    // Fallback abajo
+  }
+
+  const textarea = document.createElement('textarea');
+  textarea.value = texto;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+}
+
 export function DetallePolizaModal({
   poliza,
   alertas,
@@ -133,7 +167,6 @@ export function DetallePolizaModal({
   onSendEmail,
 }: DetallePolizaModalProps) {
   const [copiado, setCopiado] = useState(false);
-  const [avisoWhatsapp, setAvisoWhatsapp] = useState(false);
   const [enviandoCorreo, setEnviandoCorreo] = useState(false);
   const [marcando, setMarcando] = useState<string | null>(null);
 
@@ -143,16 +176,23 @@ export function DetallePolizaModal({
   const alertaActiva = alertasPoliza[0];
 
   const textoConEmojis = construirMensajeWhatsappConEmojis(poliza, alertaActiva?.etiqueta);
-  const waUrl = buildWhatsappLink(poliza.telefono, textoConEmojis);
+  const waUrl = construirEnlaceWhatsappDirecto(poliza.telefono, textoConEmojis);
 
   const handleCopiar = async () => {
     try {
-      await navigator.clipboard.writeText(textoConEmojis);
+      await copiarAlPortapapeles(textoConEmojis);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
     } catch {
       setCopiado(false);
     }
+  };
+
+  const handleAbrirWhatsapp = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!waUrl) return;
+    e.preventDefault();
+    await copiarAlPortapapeles(textoConEmojis);
+    window.open(waUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleMarcarEnviado = async (tipo: string) => {
@@ -381,12 +421,6 @@ export function DetallePolizaModal({
           )}
         </div>
 
-        {avisoWhatsapp && (
-          <p className="text-xs text-[#16A34A] font-medium mb-3">
-            Mensaje con emojis enviado en el enlace y copiado al portapapeles como respaldo.
-          </p>
-        )}
-
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#E2E8F0]">
           <button
             type="button"
@@ -420,11 +454,7 @@ export function DetallePolizaModal({
                 href={waUrl}
                 target="_blank"
                 rel="noreferrer"
-                onClick={() => {
-                  navigator.clipboard?.writeText(textoConEmojis).catch(() => {});
-                  setAvisoWhatsapp(true);
-                  setTimeout(() => setAvisoWhatsapp(false), 5000);
-                }}
+                onClick={handleAbrirWhatsapp}
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold"
                 style={{ textDecoration: 'none' }}
               >
