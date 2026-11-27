@@ -11,6 +11,7 @@ import {
   FileText,
   Mail,
   Phone,
+  ShieldCheck,
   User,
   X,
 } from 'lucide-react';
@@ -123,7 +124,10 @@ export function construirMensajeWhatsappConEmojis(poliza: Poliza, etiquetaPlazo?
   return lineas.join('\n');
 }
 
-function construirEnlaceWhatsappDirecto(telefono: string | null | undefined, mensaje: string): string | null {
+export function construirEnlaceWhatsappDirecto(
+  telefono: string | null | undefined,
+  mensaje: string
+): string | null {
   if (!telefono) return null;
   let digits = telefono.replace(/\D/g, '');
   if (!digits) return null;
@@ -137,7 +141,7 @@ function construirEnlaceWhatsappDirecto(telefono: string | null | undefined, men
   return `${baseUrl}?phone=${digits}&text=${encodeURIComponent(mensaje)}`;
 }
 
-async function copiarAlPortapapeles(texto: string): Promise<void> {
+export async function copiarAlPortapapeles(texto: string): Promise<void> {
   try {
     if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
       await navigator.clipboard.writeText(texto);
@@ -171,6 +175,9 @@ export function DetallePolizaModal({
   const [marcando, setMarcando] = useState<string | null>(null);
 
   if (!poliza) return null;
+
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const estaVigente = Boolean(poliza.activo) && (!poliza.hasta || poliza.hasta >= hoyStr);
 
   const alertasPoliza = alertas.filter((a) => a.polizaId === poliza.id);
   const alertaActiva = alertasPoliza[0];
@@ -216,32 +223,52 @@ export function DetallePolizaModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 md:p-8 z-50">
+    <div
+      onMouseDown={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Detalle de póliza ${poliza.placa}`}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.56)',
+        backdropFilter: 'blur(2px)',
+        WebkitBackdropFilter: 'blur(2px)',
+        zIndex: 50,
+      }}
+      className="flex items-center justify-center p-4 sm:p-6 overflow-hidden"
+    >
       <div
-        className="bg-white rounded-2xl border border-[#E2E8F0] w-full max-w-5xl p-6 md:p-8 shadow-sm mx-auto"
-        style={{ maxHeight: '92vh', overflowY: 'auto' }}
+        onMouseDown={(e) => e.stopPropagation()}
+        style={{
+          overflow: 'hidden',
+          padding: '1.5rem 1.75rem',
+        }}
+        className="bg-white rounded-2xl border border-[#E2E8F0] w-full max-w-4xl shadow-2xl mx-auto"
       >
-        <div className="flex items-start justify-between gap-4 pb-5 border-b border-[#E2E8F0]">
-          <div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="text-2xl font-bold text-[#0F172A] font-headline">
+        {/* Encabezado */}
+        <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[#E2E8F0]">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-xl sm:text-2xl font-bold text-[#0F172A] font-headline">
+                <ShieldCheck size={22} className="text-[#DC2626] shrink-0" />
                 {poliza.placa}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F1F5F9] text-[#0F172A]">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F1F5F9] text-[#0F172A] border border-[#E2E8F0]">
                 {poliza.aseguradora || 'Aseguradora'}
               </span>
               <span
                 className={
-                  poliza.activo
-                    ? 'px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-[#0F172A]'
-                    : 'px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F1F5F9] text-[#64748B]'
+                  estaVigente
+                    ? 'px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-[#15803D] border border-emerald-200'
+                    : 'px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-[#DC2626] border border-red-200'
                 }
               >
-                {poliza.activo ? 'Vigente' : 'Inactiva'}
+                {estaVigente ? 'Vigente' : 'Vencida'}
               </span>
             </div>
-            <p className="text-xs text-[#64748B] mt-1.5 mb-0">
-              Póliza registrada #{poliza.id} · {poliza.marcaLinea || poliza.tipoVehiculo || 'Vehículo'}
+            <p className="text-xs text-[#64748B] mt-1 mb-0">
+              Póliza #{poliza.id} · {poliza.marcaLinea || poliza.tipoVehiculo || 'Vehículo'}
             </p>
           </div>
 
@@ -249,66 +276,83 @@ export function DetallePolizaModal({
             type="button"
             onClick={onClose}
             aria-label="Cerrar detalle"
-            className="p-2 rounded-lg border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9] cursor-pointer"
+            className="p-2 rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC] cursor-pointer shrink-0"
           >
-            <X size={18} />
+            <X size={17} />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 border border-[#E2E8F0] rounded-xl overflow-hidden my-6 bg-[#F8FAFC]">
-          <div className="p-4 md:p-5 bg-white border-b sm:border-b-0 sm:border-r border-[#E2E8F0]">
-            <div className="text-xs font-medium text-[#64748B]">Valor SOAT</div>
-            <div className="text-xl font-bold text-[#0F172A] mt-1 font-headline">
+        {/* Resumen financiero */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            marginTop: '1rem',
+            marginBottom: '1rem',
+          }}
+          className="border border-[#E2E8F0] rounded-xl overflow-hidden bg-[#F8FAFC]"
+        >
+          <div className="px-4 py-2.5 bg-white border-r border-[#E2E8F0]">
+            <div className="text-[11px] font-medium text-[#64748B]">Valor SOAT</div>
+            <div className="text-lg font-bold text-[#0F172A] mt-0.5 font-headline">
               {formatMonedaRedcell(poliza.precioSoat)}
             </div>
           </div>
 
-          <div className="p-4 md:p-5 bg-white border-b sm:border-b-0 sm:border-r border-[#E2E8F0]">
-            <div className="text-xs font-medium text-[#64748B]">Uso de plataforma</div>
-            <div className="text-xl font-bold text-[#16A34A] mt-1 font-headline">
+          <div className="px-4 py-2.5 bg-white border-r border-[#E2E8F0]">
+            <div className="text-[11px] font-medium text-[#64748B]">Uso de plataforma</div>
+            <div className="text-lg font-bold text-[#16A34A] mt-0.5 font-headline">
               {formatMonedaRedcell(poliza.usoPlataforma)}
             </div>
           </div>
 
-          <div className="p-4 md:p-5 bg-red-50">
-            <div className="text-xs font-semibold text-[#DC2626]">Total a pagar</div>
-            <div className="text-2xl font-bold text-[#DC2626] mt-1 font-headline">
+          <div className="px-4 py-2.5 bg-red-50/90">
+            <div className="text-[11px] font-semibold text-[#DC2626]">Total a pagar</div>
+            <div className="text-lg sm:text-xl font-bold text-[#DC2626] mt-0.5 font-headline">
               {formatMonedaRedcell(poliza.totalPagar)}
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-          <div className="border border-[#E2E8F0] rounded-xl p-5 bg-white">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#0F172A] pb-3 mb-3 border-b border-[#E2E8F0]">
-              <Car size={15} className="text-[#DC2626]" />
+        {/* Dos cuadros lado a lado */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: '1rem',
+            marginBottom: '1rem',
+          }}
+        >
+          <div className="border border-[#E2E8F0] rounded-xl p-4 bg-white min-w-0">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#0F172A] pb-2 mb-1 border-b border-[#E2E8F0]">
+              <Car size={14} className="text-[#DC2626]" />
               Datos del vehículo
             </div>
 
-            <div className="divide-y divide-[#E2E8F0] text-sm">
-              <div className="py-2.5 flex items-center justify-between gap-4">
+            <div className="divide-y divide-[#F1F5F9] text-xs sm:text-sm">
+              <div className="py-1.5 flex items-center justify-between gap-2">
                 <span className="text-[#64748B]">Clase / Tipo</span>
-                <span className="font-semibold text-[#0F172A] text-right">
+                <span className="font-semibold text-[#0F172A] text-right truncate">
                   {poliza.tipoVehiculo || '—'}
                 </span>
               </div>
-              <div className="py-2.5 flex items-center justify-between gap-4">
+              <div className="py-1.5 flex items-center justify-between gap-2">
                 <span className="text-[#64748B]">Marca y línea</span>
-                <span className="font-semibold text-[#0F172A] text-right">
+                <span className="font-semibold text-[#0F172A] text-right truncate">
                   {poliza.marcaLinea || '—'}
                 </span>
               </div>
-              <div className="py-2.5 flex items-center justify-between gap-4">
+              <div className="py-1.5 flex items-center justify-between gap-2">
                 <span className="text-[#64748B]">Cilindraje</span>
                 <span className="font-semibold text-[#0F172A]">
                   {poliza.cilindraje ? `${poliza.cilindraje} cc` : '—'}
                 </span>
               </div>
-              <div className="py-2.5 flex items-center justify-between gap-4">
+              <div className="py-1.5 flex items-center justify-between gap-2">
                 <span className="text-[#64748B]">Edad del vehículo</span>
                 <span className="font-semibold text-[#0F172A]">{poliza.edadVehiculo ?? 0} años</span>
               </div>
-              <div className="py-2.5 flex items-center justify-between gap-4">
+              <div className="py-1.5 flex items-center justify-between gap-2">
                 <span className="text-[#64748B]">Capacidad</span>
                 <span className="font-semibold text-[#0F172A]">
                   {poliza.capacidadToneladas ?? 0} ton
@@ -317,53 +361,59 @@ export function DetallePolizaModal({
             </div>
           </div>
 
-          <div className="border border-[#E2E8F0] rounded-xl p-5 bg-white">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#0F172A] pb-3 mb-3 border-b border-[#E2E8F0]">
-              <User size={15} className="text-[#0F172A]" />
+          <div className="border border-[#E2E8F0] rounded-xl p-4 bg-white min-w-0">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#0F172A] pb-2 mb-1 border-b border-[#E2E8F0]">
+              <User size={14} className="text-[#0F172A]" />
               Propietario y vigencia
             </div>
 
-            <div className="divide-y divide-[#E2E8F0] text-sm">
-              <div className="py-2.5 flex items-center justify-between gap-4">
+            <div className="divide-y divide-[#F1F5F9] text-xs sm:text-sm">
+              <div className="py-1.5 flex items-center justify-between gap-2">
                 <span className="text-[#64748B]">Propietario</span>
-                <span className="font-semibold text-[#0F172A] text-right">
+                <span className="font-semibold text-[#0F172A] text-right truncate">
                   {poliza.propietario || '—'}
                 </span>
               </div>
-              <div className="py-2.5 flex items-center justify-between gap-4">
+              <div className="py-1.5 flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-[#64748B]">
-                  <FileText size={14} />
+                  <FileText size={13} />
                   Identificación
                 </span>
                 <span className="font-semibold text-[#0F172A]">
                   {poliza.tipoDocumento || 'DOC'} {poliza.documento ?? '—'}
                 </span>
               </div>
-              <div className="py-2.5 flex items-center justify-between gap-4">
+              <div className="py-1.5 flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-[#64748B]">
-                  <Calendar size={14} />
+                  <Calendar size={13} />
                   Vigencia
                 </span>
-                <span className="font-semibold text-[#0F172A] text-right">
-                  {poliza.desde || '—'} <span className="text-[#64748B] font-normal">a</span>{' '}
-                  <span className="text-[#D97706]">{poliza.hasta || '—'}</span>
+                <span className="text-xs font-medium text-[#0F172A] text-right whitespace-nowrap">
+                  {formatFechaDdMmYyyy(poliza.desde)} →{' '}
+                  <span
+                    className={
+                      estaVigente ? 'font-bold text-[#15803D]' : 'font-bold text-[#DC2626]'
+                    }
+                  >
+                    {formatFechaDdMmYyyy(poliza.hasta)}
+                  </span>
                 </span>
               </div>
-              <div className="py-2.5 flex items-center justify-between gap-4">
+              <div className="py-1.5 flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-[#64748B]">
-                  <Phone size={14} className="text-[#16A34A]" />
+                  <Phone size={13} className="text-[#16A34A]" />
                   Teléfono
                 </span>
                 <span className="font-medium text-[#0F172A]">
                   {poliza.telefono || 'Sin registrar'}
                 </span>
               </div>
-              <div className="py-2.5 flex items-center justify-between gap-4">
+              <div className="py-1.5 flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-[#64748B]">
-                  <Mail size={14} />
+                  <Mail size={13} />
                   Correo
                 </span>
-                <span className="font-medium text-[#0F172A] text-right">
+                <span className="font-medium text-[#0F172A] text-right truncate max-w-[190px]">
                   {poliza.email || 'Sin registrar'}
                 </span>
               </div>
@@ -371,12 +421,11 @@ export function DetallePolizaModal({
           </div>
         </div>
 
-        <div className="border border-[#E2E8F0] rounded-xl p-4 bg-[#F8FAFC] mb-6">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase text-[#0F172A]">
-              <Bell size={14} className="text-[#D97706]" />
-              Recordatorios de vencimiento ({alertasPoliza.length})
-            </span>
+        {/* Recordatorios */}
+        <div className="border border-[#E2E8F0] rounded-xl px-4 py-2.5 bg-[#F8FAFC] mb-4">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#0F172A] mb-0.5">
+            <Bell size={13} className="text-[#D97706]" />
+            Recordatorios de vencimiento ({alertasPoliza.length})
           </div>
 
           {alertasPoliza.length === 0 ? (
@@ -384,16 +433,16 @@ export function DetallePolizaModal({
               Sin recordatorios pendientes para esta póliza en este momento.
             </p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5 mt-1.5">
               {alertasPoliza.map((alerta) => (
                 <div
                   key={`${alerta.polizaId}-${alerta.tipoRecordatorio}`}
-                  className="p-3 rounded-lg bg-white border border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 text-xs"
+                  className="px-3 py-1.5 rounded-lg bg-white border border-[#E2E8F0] flex flex-wrap items-center justify-between gap-2 text-xs"
                 >
                   <div>
                     <strong className="text-[#0F172A]">{alerta.etiqueta}</strong>{' '}
                     <span className="text-[#64748B]">
-                      · Vence {alerta.fechaVencimiento} ({alerta.diasTranscurridos} días)
+                      · Vence {formatFechaDdMmYyyy(alerta.fechaVencimiento)} ({alerta.diasTranscurridos} días)
                     </span>
                   </div>
 
@@ -408,7 +457,7 @@ export function DetallePolizaModal({
                           type="button"
                           disabled={marcando === alerta.tipoRecordatorio}
                           onClick={() => handleMarcarEnviado(alerta.tipoRecordatorio)}
-                          className="px-3 py-1 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9] font-semibold text-[#0F172A] cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#F1F5F9] font-semibold text-[#0F172A] cursor-pointer"
                         >
                           {marcando === alerta.tipoRecordatorio ? 'Guardando...' : 'Marcar enviado'}
                         </button>
@@ -421,17 +470,18 @@ export function DetallePolizaModal({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#E2E8F0]">
+        {/* Acciones inferiores */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-[#E2E8F0]">
           <button
             type="button"
             onClick={handleCopiar}
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] text-xs font-semibold text-[#0F172A] cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] cursor-pointer"
           >
-            {copiado ? <Check size={15} className="text-[#16A34A]" /> : <Copy size={15} />}
+            {copiado ? <Check size={14} className="text-[#16A34A]" /> : <Copy size={14} />}
             {copiado ? 'Mensaje copiado' : 'Copiar mensaje'}
           </button>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             {onSendEmail && (
               <button
                 type="button"
@@ -442,7 +492,7 @@ export function DetallePolizaModal({
                     ? `Enviar recordatorio a ${poliza.email.trim()}`
                     : 'Sin correo registrado'
                 }
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] text-xs font-semibold text-[#0F172A] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Mail size={14} className="text-[#0E3B72]" />
                 {enviandoCorreo ? 'Enviando correo...' : 'Enviar correo'}
@@ -455,7 +505,7 @@ export function DetallePolizaModal({
                 target="_blank"
                 rel="noreferrer"
                 onClick={handleAbrirWhatsapp}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold"
                 style={{ textDecoration: 'none' }}
               >
                 <ExternalLink size={14} />
@@ -473,7 +523,7 @@ export function DetallePolizaModal({
                 onClose();
                 onEdit(poliza);
               }}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-semibold border-0 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-semibold border-0 cursor-pointer"
             >
               <Edit3 size={14} />
               Editar póliza

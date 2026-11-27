@@ -37,6 +37,20 @@ const selectControlStyle = {
   paddingRight: '2.25rem',
 } as const;
 
+function formatFechaLegible(fecha?: string | null): string {
+  if (!fecha) return '—';
+  const limpia = fecha.trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(limpia);
+  if (match) {
+    return `${match[3]}/${match[2]}/${match[1]}`;
+  }
+  return limpia;
+}
+
+function esPolizaVigente(poliza: Poliza, hoyStr: string): boolean {
+  return Boolean(poliza.activo) && (!poliza.hasta || poliza.hasta >= hoyStr);
+}
+
 export function PolizasTable({
   polizas,
   totalCount,
@@ -61,6 +75,8 @@ export function PolizasTable({
     aseguradoraFilter !== 'TODAS' ||
     tipoVehiculoFilter !== 'TODOS' ||
     vigenciaFilter !== 'TODOS';
+
+  const hoyStr = new Date().toISOString().slice(0, 10);
 
   return (
     <section className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden">
@@ -203,7 +219,7 @@ export function PolizasTable({
               <th className="py-3 px-4">Placa / Vehículo</th>
               <th className="py-3 px-4">Propietario</th>
               <th className="py-3 px-4">Aseguradora</th>
-              <th className="py-3 px-4">Vigencia</th>
+              <th className="py-3 px-4">Vigencia (Desde - Hasta)</th>
               <th className="py-3 px-4">Valor SOAT</th>
               <th className="py-3 px-4">Uso Plataforma</th>
               <th className="py-3 px-4">Total a Pagar</th>
@@ -224,60 +240,82 @@ export function PolizasTable({
                 </td>
               </tr>
             ) : (
-              polizas.map((p) => (
-                <tr key={p.id} className="hover:bg-[#F8FAFC]">
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-[#0F172A]">{p.placa}</div>
-                    <div className="text-xs text-[#64748B]">{p.marcaLinea || p.tipoVehiculo}</div>
-                  </td>
-                  <td className="py-3.5 px-4">
-                    <div>{p.propietario || '—'}</div>
-                    <div className="text-xs text-[#64748B]">
-                      {p.tipoDocumento ? `${p.tipoDocumento} ` : ''}
-                      {p.documento ?? ''}
-                    </div>
-                  </td>
-                  <td className="py-3.5 px-4 text-xs font-medium">{p.aseguradora || '—'}</td>
-                  <td className="py-3.5 px-4 text-xs text-[#64748B]">
-                    <div>{p.desde || '—'}</div>
-                    <div>{p.hasta || '—'}</div>
-                  </td>
-                  <td className="py-3.5 px-4">{formatCOP(p.precioSoat)}</td>
-                  <td className="py-3.5 px-4 font-medium text-[#16A34A]">
-                    {formatCOP(p.usoPlataforma)}
-                  </td>
-                  <td className="py-3.5 px-4 font-bold">{formatCOP(p.totalPagar)}</td>
-                  <td className="py-3.5 px-4 text-right">
-                    <div className="inline-flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => onView(p)}
-                        title="Ver detalle del SOAT"
-                        aria-label={`Ver detalle de la póliza ${p.placa}`}
-                        className="p-2 rounded-lg border border-[#E2E8F0] hover:bg-[#F1F5F9] text-[#0F172A] bg-white cursor-pointer"
-                      >
-                        <Eye size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onEdit(p)}
-                        title="Editar uso de plataforma y datos"
-                        className="p-2 rounded-lg border border-[#E2E8F0] hover:bg-[#F1F5F9] text-[#0F172A] bg-white cursor-pointer"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDelete(p)}
-                        title="Eliminar póliza"
-                        className="p-2 rounded-lg border border-[#E2E8F0] hover:bg-red-50 text-[#DC2626] bg-white cursor-pointer"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+              polizas.map((p) => {
+                const vigente = esPolizaVigente(p, hoyStr);
+                return (
+                  <tr key={p.id} className="hover:bg-[#F8FAFC]">
+                    <td className="py-3.5 px-4">
+                      <div className="font-bold text-[#0F172A]">{p.placa}</div>
+                      <div className="text-xs text-[#64748B]">{p.marcaLinea || p.tipoVehiculo}</div>
+                    </td>
+                    <td className="py-3.5 px-4">
+                      <div>{p.propietario || '—'}</div>
+                      <div className="text-xs text-[#64748B]">
+                        {p.tipoDocumento ? `${p.tipoDocumento} ` : ''}
+                        {p.documento ?? ''}
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 text-xs font-medium">{p.aseguradora || '—'}</td>
+                    <td className="py-3.5 px-4 text-xs whitespace-nowrap">
+                      <div className="text-[#475569]">
+                        <span className="font-semibold text-[#0F172A]">Desde:</span>{' '}
+                        {formatFechaLegible(p.desde)}
+                      </div>
+                      <div className="text-[#475569] mt-0.5">
+                        <span className="font-semibold text-[#0F172A]">Hasta:</span>{' '}
+                        <span className={vigente ? 'font-semibold text-[#15803D]' : 'font-semibold text-[#DC2626]'}>
+                          {formatFechaLegible(p.hasta)}
+                        </span>
+                      </div>
+                      <div className="mt-1">
+                        <span
+                          className={
+                            vigente
+                              ? 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-[#15803D]'
+                              : 'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-[#DC2626]'
+                          }
+                        >
+                          {vigente ? 'Vigente' : 'Vencido'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap">{formatCOP(p.precioSoat)}</td>
+                    <td className="py-3.5 px-4 font-medium text-[#16A34A] whitespace-nowrap">
+                      {formatCOP(p.usoPlataforma)}
+                    </td>
+                    <td className="py-3.5 px-4 font-bold whitespace-nowrap">{formatCOP(p.totalPagar)}</td>
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => onView(p)}
+                          title="Ver detalle del SOAT"
+                          aria-label={`Ver detalle de la póliza ${p.placa}`}
+                          className="p-2 rounded-lg border border-[#E2E8F0] hover:bg-[#F1F5F9] text-[#0F172A] bg-white cursor-pointer"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onEdit(p)}
+                          title="Editar uso de plataforma y datos"
+                          className="p-2 rounded-lg border border-[#E2E8F0] hover:bg-[#F1F5F9] text-[#0F172A] bg-white cursor-pointer"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onDelete(p)}
+                          title="Eliminar póliza"
+                          className="p-2 rounded-lg border border-[#E2E8F0] hover:bg-red-50 text-[#DC2626] bg-white cursor-pointer"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

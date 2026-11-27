@@ -86,4 +86,5 @@ export interface UsuarioSistema {
   email: string;
   username: string;
   rol: string;
+  estado?: boolean;
 }

@@ -51,6 +51,7 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
   const [usuarios, setUsuarios] = useState<UsuarioSistema[]>([]);
   const [loadingUsuarios, setLoadingUsuarios] = useState(false);
   const [sinPermisosListado, setSinPermisosListado] = useState(false);
+  const [cambiandoId, setCambiandoId] = useState<number | null>(null);
 
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -85,6 +86,37 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
   useEffect(() => {
     cargarUsuarios();
   }, [cargarUsuarios]);
+
+  const handleToggleEstado = async (u: UsuarioSistema) => {
+    const estaActivo = u.estado ?? true;
+    const nuevoEstado = !estaActivo;
+    const accion = nuevoEstado ? 'activar' : 'desactivar';
+
+    const confirmado = await alertasSwal.confirmar(
+      `¿${nuevoEstado ? 'Activar' : 'Desactivar'} usuario?`,
+      `¿Deseas ${accion} a ${u.username}? ${
+        !nuevoEstado ? 'No podrá iniciar sesión mientras esté desactivado.' : ''
+      }`
+    );
+    if (!confirmado) return;
+
+    setCambiandoId(u.id);
+    try {
+      await api.cambiarEstadoUsuario(u.id, nuevoEstado);
+      await alertasSwal.exito(
+        'Estado actualizado',
+        `El usuario ${u.username} ahora está ${nuevoEstado ? 'activo' : 'desactivado'}.`
+      );
+      await cargarUsuarios();
+    } catch (err: unknown) {
+      await alertasSwal.error(
+        'No se pudo actualizar el estado',
+        err instanceof Error ? err.message : 'Intenta nuevamente.'
+      );
+    } finally {
+      setCambiandoId(null);
+    }
+  };
 
   const emailValido = EMAIL_REGEX.test(email.trim());
   const usernameValido = USERNAME_REGEX.test(username.trim());
@@ -185,7 +217,7 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
             Usuarios del sistema ({usuarios.length})
           </h2>
           <p className="text-xs text-[#64748B] mt-1 mb-0">
-            Consulta los usuarios registrados y crea cuentas para administradores u operadores.
+            Consulta los usuarios registrados, controla su acceso y crea nuevas cuentas.
           </p>
         </div>
 
@@ -241,24 +273,32 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] text-left border-collapse">
+            <table className="w-full min-w-[780px] text-left border-collapse">
               <thead>
                 <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">
-                  <th style={cellStyle} className="w-28">
+                  <th style={cellStyle} className="w-24">
                     ID
                   </th>
-                  <th style={cellStyle} className="w-48">
+                  <th style={cellStyle} className="w-44">
                     Usuario
                   </th>
                   <th style={cellStyle}>Correo electrónico</th>
-                  <th style={cellStyle} className="w-36 text-right">
+                  <th style={cellStyle} className="w-32">
                     Rol
+                  </th>
+                  <th style={cellStyle} className="w-32">
+                    Estado
+                  </th>
+                  <th style={cellStyle} className="w-36 text-right">
+                    Acción
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E2E8F0] text-sm">
                 {usuarios.map((u) => {
                   const esAdmin = u.rol?.toUpperCase() === 'ADMIN';
+                  const estaActivo = u.estado ?? true;
+
                   return (
                     <tr key={u.id} className="hover:bg-[#F8FAFC] transition-colors">
                       <td style={cellStyle} className="font-mono text-xs text-[#64748B]">
@@ -270,7 +310,7 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
                       <td style={cellStyle} className="text-[#334155]">
                         {u.email}
                       </td>
-                      <td style={cellStyle} className="text-right">
+                      <td style={cellStyle}>
                         <span
                           style={{ padding: '0.28rem 0.75rem' }}
                           className={
@@ -281,6 +321,37 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
                         >
                           {u.rol}
                         </span>
+                      </td>
+                      <td style={cellStyle}>
+                        <span
+                          style={{ padding: '0.28rem 0.75rem' }}
+                          className={
+                            estaActivo
+                              ? 'inline-flex items-center rounded-full text-xs font-semibold bg-emerald-50 text-[#15803D]'
+                              : 'inline-flex items-center rounded-full text-xs font-semibold bg-slate-100 text-[#64748B]'
+                          }
+                        >
+                          {estaActivo ? 'Activo' : 'Desactivado'}
+                        </span>
+                      </td>
+                      <td style={cellStyle} className="text-right">
+                        <button
+                          type="button"
+                          disabled={cambiandoId === u.id}
+                          onClick={() => handleToggleEstado(u)}
+                          style={{ padding: '0.35rem 0.8rem' }}
+                          className={
+                            estaActivo
+                              ? 'rounded-lg border border-[#FECACA] bg-[#FEF2F2] hover:bg-[#FEE2E2] text-xs font-semibold text-[#DC2626] cursor-pointer disabled:opacity-60'
+                              : 'rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] hover:bg-[#DCFCE7] text-xs font-semibold text-[#15803D] cursor-pointer disabled:opacity-60'
+                          }
+                        >
+                          {cambiandoId === u.id
+                            ? 'Guardando...'
+                            : estaActivo
+                              ? 'Desactivar'
+                              : 'Activar'}
+                        </button>
                       </td>
                     </tr>
                   );
@@ -451,7 +522,7 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
             <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
               <div className="font-bold text-[#0F172A]">ADMIN</div>
               <p className="text-[#64748B] m-0">
-                Puede ver usuarios, registrar nuevos miembros y gestionar tarifas de uso de plataforma.
+                Puede ver usuarios, activar/desactivar cuentas, registrar miembros y gestionar tarifas.
               </p>
             </div>
             <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1">
@@ -465,10 +536,10 @@ export function UsuariosSection({ onIrAConfiguracion }: UsuariosSectionProps) {
           <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] space-y-1 text-xs">
             <div className="font-semibold text-[#0F172A] inline-flex items-center gap-1.5">
               <KeyRound size={13} className="text-[#D97706]" />
-              Acceso inmediato
+              Control de acceso
             </div>
             <p className="text-[#64748B] m-0">
-              Cada nuevo usuario ingresa con su correo registrado y la contraseña asignada.
+              Un usuario desactivado no puede iniciar sesión hasta que un administrador lo vuelva a activar.
             </p>
           </div>
         </div>

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Bell,
+  Calendar,
   CheckCircle2,
   Coins,
   ExternalLink,
+  Eye,
   LogOut,
   Plus,
   ShieldCheck,
@@ -13,7 +15,9 @@ import {
 import { ConfiguracionSection } from '../components/configuracion/ConfiguracionSection';
 import { Sidebar, type SidebarSection } from '../components/layout/Sidebar';
 import {
+  construirEnlaceWhatsappDirecto,
   construirMensajeWhatsappConEmojis,
+  copiarAlPortapapeles,
   DetallePolizaModal,
 } from '../components/modals/DetallePolizaModal';
 import { EditarPolizaModal } from '../components/modals/EditarPolizaModal';
@@ -33,7 +37,7 @@ import type {
 } from '../types/soat';
 import { alertasSwal } from '../utils/alerts';
 import { obtenerUsuarioSesion } from '../utils/auth';
-import { buildWhatsappLink, formatCOP } from '../utils/format';
+import { formatCOP } from '../utils/format';
 
 interface DashboardPageProps {
   onUnauthorized: () => void;
@@ -51,6 +55,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
   const [aseguradoraFilter, setAseguradoraFilter] = useState('TODAS');
   const [tipoVehiculoFilter, setTipoVehiculoFilter] = useState('TODOS');
   const [vigenciaFilter, setVigenciaFilter] = useState<EstadoVigenciaFilter>('TODOS');
+  const [soloPendientesWhatsapp, setSoloPendientesWhatsapp] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<SidebarSection>('polizas');
 
@@ -96,6 +101,14 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
   }, [cargarDatos]);
 
   const tarifaActiva = useMemo(() => tarifas.find((t) => Boolean(t.activo)), [tarifas]);
+
+  const alertasVisibles = useMemo(
+    () =>
+      soloPendientesWhatsapp
+        ? alertas.filter((a) => !a.enviadoWhatsapp)
+        : alertas,
+    [alertas, soloPendientesWhatsapp]
+  );
 
   const handleUploadPdf = async (file: File) => {
     const res = await api.subirPdf(file);
@@ -375,244 +388,310 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
         onLogout={onUnauthorized}
       />
 
-      <main className="flex-1 min-w-0 p-4 sm:p-6 md:p-8 max-w-none w-full">
-        <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] m-0 font-headline">
-              {tituloHeader}
-            </h1>
-            <p className="text-xs sm:text-sm text-[#64748B] mt-1 mb-0">{subtituloHeader}</p>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 shrink-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveSection('polizas')}
-                className={
-                  activeSection === 'polizas'
-                    ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white'
-                    : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
-                }
-              >
-                <ShieldCheck size={16} className="shrink-0" />
-                Pólizas ({polizas.length})
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveSection('alertas')}
-                className={
-                  activeSection === 'alertas'
-                    ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#D97706] bg-[#D97706] text-white'
-                    : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
-                }
-              >
-                <Bell size={16} className="shrink-0" />
-                Alertas ({alertas.length})
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveSection('tarifas')}
-                className={
-                  activeSection === 'tarifas'
-                    ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#16A34A] bg-[#16A34A] text-white'
-                    : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
-                }
-              >
-                <Coins size={16} className="shrink-0" />
-                Uso de plataforma
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveSection('usuarios')}
-                className={
-                  activeSection === 'usuarios'
-                    ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white'
-                    : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
-                }
-              >
-                <UserPlus size={16} className="shrink-0" />
-                Usuarios
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setUploadOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border-0"
-              >
-                <Plus size={16} className="shrink-0" />
-                Subir SOAT PDF
-              </button>
+      <main
+        style={{
+          paddingLeft: '20.5rem',
+          paddingRight: '2.5rem',
+          paddingTop: '2.5rem',
+          paddingBottom: '2.5rem',
+        }}
+        className="flex-1 min-w-0 max-w-none w-full"
+      >
+        <div className="w-full px-3 sm:px-5 lg:px-6 space-y-7">
+          <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pt-1">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] m-0 font-headline">
+                {tituloHeader}
+              </h1>
+              <p className="text-xs sm:text-sm text-[#64748B] mt-1.5 mb-0">{subtituloHeader}</p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setActiveSection('configuracion')}
-              title="Abrir configuración de perfil"
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] shadow-sm shrink-0 cursor-pointer text-left"
-            >
-              <img
-                src="/logo-redcell.png"
-                alt={usuario.nombre}
-                className="h-8 w-8 rounded-full object-contain bg-[#F8FAFC] p-1 border border-[#E2E8F0] shrink-0"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = 'none';
-                }}
-              />
-              <div className="leading-tight whitespace-nowrap">
-                <div className="text-xs font-bold text-[#0F172A]">{usuario.nombre}</div>
-                <div className="text-[11px] text-[#64748B]">
-                  {usuario.rol} · <span className="font-medium text-[#0F172A]">{usuario.username}</span>
+            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 shrink-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('polizas')}
+                  className={
+                    activeSection === 'polizas'
+                      ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white'
+                      : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                  }
+                >
+                  <ShieldCheck size={16} className="shrink-0" />
+                  Pólizas ({polizas.length})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('alertas')}
+                  className={
+                    activeSection === 'alertas'
+                      ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#D97706] bg-[#D97706] text-white'
+                      : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                  }
+                >
+                  <Bell size={16} className="shrink-0" />
+                  Alertas ({alertas.length})
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('tarifas')}
+                  className={
+                    activeSection === 'tarifas'
+                      ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#16A34A] bg-[#16A34A] text-white'
+                      : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                  }
+                >
+                  <Coins size={16} className="shrink-0" />
+                  Uso de plataforma
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('usuarios')}
+                  className={
+                    activeSection === 'usuarios'
+                      ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white'
+                      : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                  }
+                >
+                  <UserPlus size={16} className="shrink-0" />
+                  Usuarios
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setUploadOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border-0"
+                >
+                  <Plus size={16} className="shrink-0" />
+                  Subir SOAT PDF
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveSection('configuracion')}
+                title="Abrir configuración de perfil"
+                className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] shadow-sm shrink-0 cursor-pointer text-left"
+              >
+                <img
+                  src="/logo-redcell.png"
+                  alt={usuario.nombre}
+                  className="h-8 w-8 rounded-full object-contain bg-[#F8FAFC] p-1 border border-[#E2E8F0] shrink-0"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <div className="leading-tight whitespace-nowrap">
+                  <div className="text-xs font-bold text-[#0F172A]">{usuario.nombre}</div>
+                  <div className="text-[11px] text-[#64748B]">
+                    {usuario.rol} ·{' '}
+                    <span className="font-medium text-[#0F172A]">{usuario.username}</span>
+                  </div>
                 </div>
-              </div>
-            </button>
-          </div>
-        </header>
-
-        {feedback && (
-          <div className="mb-5 px-4 py-3 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-between gap-3 text-sm">
-            <span>{feedback}</span>
-            <button
-              type="button"
-              onClick={() => setFeedback(null)}
-              className="text-[#64748B] hover:text-[#0F172A] bg-transparent border-0 cursor-pointer shrink-0"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        )}
-
-        <KpiCards totalPolizas={polizas.length} totalPlataforma={totalPlataforma} />
-
-        {activeSection === 'polizas' ? (
-          <PolizasTable
-            polizas={polizasFiltradas}
-            totalCount={polizas.length}
-            loading={loading}
-            search={search}
-            onSearchChange={setSearch}
-            aseguradoraFilter={aseguradoraFilter}
-            onAseguradoraChange={setAseguradoraFilter}
-            aseguradoras={aseguradoras}
-            tipoVehiculoFilter={tipoVehiculoFilter}
-            onTipoVehiculoChange={setTipoVehiculoFilter}
-            tiposVehiculo={tiposVehiculo}
-            vigenciaFilter={vigenciaFilter}
-            onVigenciaChange={setVigenciaFilter}
-            onClearFilters={handleClearFilters}
-            onView={(p) => setViewingPoliza(p)}
-            onEdit={(p) => setEditingPoliza(p)}
-            onDelete={handleEliminar}
-          />
-        ) : activeSection === 'tarifas' ? (
-          <UsoPlataformaSection
-            tarifas={tarifas}
-            polizas={polizas}
-            loading={loading}
-            onCreateTarifa={handleCreateTarifa}
-            onUpdateTarifa={handleUpdateTarifa}
-            onDeleteTarifa={handleDeleteTarifa}
-            onApplyTarifaToPolizas={handleApplyTarifaToPolizas}
-          />
-        ) : activeSection === 'usuarios' ? (
-          <UsuariosSection onIrAConfiguracion={() => setActiveSection('configuracion')} />
-        ) : activeSection === 'configuracion' ? (
-          <ConfiguracionSection
-            perfil={perfil}
-            loadingPerfil={loadingPerfil}
-            tarifaActivaValor={tarifaActiva?.valor}
-            onSavePerfil={handleSavePerfil}
-            onIrATarifas={() => setActiveSection('tarifas')}
-          />
-        ) : (
-          <section className="bg-white border border-[#E2E8F0] rounded-xl p-6">
-            <div className="text-center mb-5">
-              <h2 className="text-lg font-bold m-0 font-headline">
-                Alertas y recordatorios de vencimiento
-              </h2>
-              <p className="text-xs text-[#64748B] mt-1 mb-0">
-                Ventanas de notificación configuradas: 1 mes, 5 días, 1 día y mismo día.
-              </p>
+              </button>
             </div>
+          </header>
 
-            {alertas.length === 0 ? (
-              <p className="text-sm text-[#64748B] text-center py-6 m-0">
-                No hay alertas pendientes en este momento.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                {alertas.map((alerta) => {
-                  const key = `${alerta.polizaId}-${alerta.tipoRecordatorio}`;
-                  const polizaAsociada = polizas.find((p) => p.id === alerta.polizaId);
-                  const mensajeAlertaEmojis = polizaAsociada
-                    ? construirMensajeWhatsappConEmojis(polizaAsociada, alerta.etiqueta)
-                    : alerta.mensajeAlerta;
-                  const waLink = buildWhatsappLink(alerta.telefono, mensajeAlertaEmojis);
+          {feedback && (
+            <div className="px-4 py-3 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-between gap-3 text-sm">
+              <span>{feedback}</span>
+              <button
+                type="button"
+                onClick={() => setFeedback(null)}
+                className="text-[#64748B] hover:text-[#0F172A] bg-transparent border-0 cursor-pointer shrink-0"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
 
-                  return (
-                    <div
-                      key={key}
-                      className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] flex flex-col justify-between gap-3"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between gap-2 mb-1.5">
-                          <span className="font-bold text-base font-headline">{alerta.placa}</span>
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-[#0F172A]">
-                            {alerta.etiqueta}
-                          </span>
-                        </div>
-                        <div className="text-sm font-medium">{alerta.propietario || 'Cliente'}</div>
-                        <div className="text-xs text-[#64748B] mt-0.5">
-                          Vence: <strong>{alerta.fechaVencimiento}</strong> · Programada:{' '}
-                          {alerta.fechaProgramada} ({alerta.diasTranscurridos} días)
-                        </div>
-                        <div className="text-xs text-[#64748B] mt-1">
-                          Email: {alerta.enviadoEmail ? 'Enviado' : 'Pendiente'} · WhatsApp:{' '}
-                          {alerta.enviadoWhatsapp ? 'Enviado' : 'Pendiente'}
-                        </div>
-                      </div>
+          <KpiCards totalPolizas={polizas.length} totalPlataforma={totalPlataforma} />
 
-                      <div className="flex flex-wrap items-center justify-center gap-2 pt-2 border-t border-[#E2E8F0]">
-                        {waLink && (
-                          <a
-                            href={waLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={() => {
-                              navigator.clipboard?.writeText(mensajeAlertaEmojis).catch(() => {});
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold"
-                            style={{ textDecoration: 'none' }}
-                          >
-                            <ExternalLink size={13} />
-                            Enviar WhatsApp
-                          </a>
-                        )}
+          {activeSection === 'polizas' ? (
+            <PolizasTable
+              polizas={polizasFiltradas}
+              totalCount={polizas.length}
+              loading={loading}
+              search={search}
+              onSearchChange={setSearch}
+              aseguradoraFilter={aseguradoraFilter}
+              onAseguradoraChange={setAseguradoraFilter}
+              aseguradoras={aseguradoras}
+              tipoVehiculoFilter={tipoVehiculoFilter}
+              onTipoVehiculoChange={setTipoVehiculoFilter}
+              tiposVehiculo={tiposVehiculo}
+              vigenciaFilter={vigenciaFilter}
+              onVigenciaChange={setVigenciaFilter}
+              onClearFilters={handleClearFilters}
+              onView={(p) => setViewingPoliza(p)}
+              onEdit={(p) => setEditingPoliza(p)}
+              onDelete={handleEliminar}
+            />
+          ) : activeSection === 'tarifas' ? (
+            <UsoPlataformaSection
+              tarifas={tarifas}
+              polizas={polizas}
+              loading={loading}
+              onCreateTarifa={handleCreateTarifa}
+              onUpdateTarifa={handleUpdateTarifa}
+              onDeleteTarifa={handleDeleteTarifa}
+              onApplyTarifaToPolizas={handleApplyTarifaToPolizas}
+            />
+          ) : activeSection === 'usuarios' ? (
+            <UsuariosSection onIrAConfiguracion={() => setActiveSection('configuracion')} />
+          ) : activeSection === 'configuracion' ? (
+            <ConfiguracionSection
+              perfil={perfil}
+              loadingPerfil={loadingPerfil}
+              tarifaActivaValor={tarifaActiva?.valor}
+              onSavePerfil={handleSavePerfil}
+              onIrATarifas={() => setActiveSection('tarifas')}
+            />
+          ) : (
+            <section className="bg-white border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-[#E2E8F0]">
+                <div>
+                  <h2 className="text-base font-bold m-0 font-headline">
+                    Alertas y recordatorios de vencimiento
+                  </h2>
+                  <p className="text-xs text-[#64748B] mt-0.7 mb-4">
+                    Ventanas: 1 mes, 5 días, 1 día y mismo día. Enviar WhatsApp copia el mensaje y abre el chat.
+                  </p>
+                </div>
 
-                        {!alerta.enviadoWhatsapp && (
-                          <button
-                            type="button"
-                            disabled={markingKey === key}
-                            onClick={() =>
-                              handleMarkWhatsappSent(alerta.polizaId, alerta.tipoRecordatorio)
-                            }
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] text-xs font-semibold text-[#0F172A] cursor-pointer"
-                          >
-                            <CheckCircle2 size={13} className="text-[#16A34A]" />
-                            {markingKey === key ? 'Guardando...' : 'Marcar enviado'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
-            )}
-          </section>
-        )}
+
+              {alertasVisibles.length === 0 ? (
+                <p className="text-sm text-[#64748B] text-center py-6 m-0">
+                  {soloPendientesWhatsapp
+                    ? 'No hay alertas pendientes de WhatsApp con este filtro.'
+                    : 'No hay alertas pendientes en este momento.'}
+                </p>
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                    gap: '0.95rem',
+                  }}
+                >
+                  {alertasVisibles.map((alerta) => {
+                    const key = `${alerta.polizaId}-${alerta.tipoRecordatorio}`;
+                    const polizaAsociada = polizas.find((p) => p.id === alerta.polizaId);
+                    const mensajeAlertaEmojis = polizaAsociada
+                      ? construirMensajeWhatsappConEmojis(polizaAsociada, alerta.etiqueta)
+                      : alerta.mensajeAlerta;
+                    const telefonoWa = alerta.telefono ?? polizaAsociada?.telefono;
+                    const waLink = construirEnlaceWhatsappDirecto(telefonoWa, mensajeAlertaEmojis);
+
+                    return (
+                      <div
+                        key={key}
+                        className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 flex flex-col justify-between gap-3.5 min-w-0"
+                      >
+                        <div className="space-y-2 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-bold text-sm text-[#0F172A] font-headline">
+                                {alerta.placa}
+                              </span>
+                              {polizaAsociada && (
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingPoliza(polizaAsociada)}
+                                  title="Ver detalle del SOAT"
+                                  aria-label={`Ver detalle del SOAT de la placa ${alerta.placa}`}
+                                  className="inline-flex items-center justify-center text-[#64748B] hover:text-[#0F172A] bg-white border border-[#E2E8F0] rounded p-1 cursor-pointer"
+                                >
+                                  <Eye size={12} />
+                                </button>
+                              )}
+                            </div>
+
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-[#92400E] truncate">
+                              {alerta.etiqueta}
+                            </span>
+                          </div>
+
+                          <div className="text-xs font-semibold text-[#0F172A] truncate">
+                            {alerta.propietario || polizaAsociada?.propietario || 'Cliente'}
+                          </div>
+
+                          <div className="text-[11px] text-[#64748B] flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-1.5">
+                              <Calendar size={11} className="shrink-0" />
+                              <span>
+                                Vence: <strong className="text-[#0F172A]">{alerta.fechaVencimiento}</strong>
+                              </span>
+                            </span>
+                            <span>{alerta.diasTranscurridos}d</span>
+                          </div>
+
+                          <div className="text-[11px] text-[#64748B] flex items-center justify-between gap-2">
+                            <span>Prog: {alerta.fechaProgramada}</span>
+                            <span>
+                              WA:{' '}
+                              <strong
+                                className={alerta.enviadoWhatsapp ? 'text-[#15803D]' : 'text-[#D97706]'}
+                              >
+                                {alerta.enviadoWhatsapp ? 'Enviado' : 'Pendiente'}
+                              </strong>
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2.5 pt-3 border-t border-[#E2E8F0]">
+                          {waLink ? (
+                            <a
+                              href={waLink}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                await copiarAlPortapapeles(mensajeAlertaEmojis);
+                                window.open(waLink, '_blank', 'noopener,noreferrer');
+                              }}
+                              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold flex-1 whitespace-nowrap"
+                              style={{ textDecoration: 'none' }}
+                            >
+                              <ExternalLink size={12} className="shrink-0" />
+                              WhatsApp
+                            </a>
+                          ) : (
+                            <span className="text-[11px] text-[#64748B] flex-1 truncate">
+                              Sin teléfono
+                            </span>
+                          )}
+
+                          {!alerta.enviadoWhatsapp ? (
+                            <button
+                              type="button"
+                              disabled={markingKey === key}
+                              onClick={() =>
+                                handleMarkWhatsappSent(alerta.polizaId, alerta.tipoRecordatorio)
+                              }
+                              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] text-xs font-semibold text-[#0F172A] cursor-pointer whitespace-nowrap"
+                            >
+                              <CheckCircle2 size={12} className="text-[#16A34A] shrink-0" />
+                              {markingKey === key ? '...' : 'Marcar'}
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-[#15803D] text-[11px] font-semibold whitespace-nowrap">
+                              <CheckCircle2 size={12} className="shrink-0" /> Enviado
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          )}
+        </div>
       </main>
 
       <SubirPdfModal

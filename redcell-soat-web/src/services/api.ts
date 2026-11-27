@@ -201,4 +201,15 @@ export const api = {
     });
     return handleResponse<UsuarioSistema[]>(res);
   },
+
+  cambiarEstadoUsuario: async (id: number, activo: boolean): Promise<UsuarioSistema> => {
+    const res = await fetch(
+      `${API_URL}/api/auth/usuarios/${id}/estado?activo=${activo}`,
+      {
+        method: 'PATCH',
+        headers: getHeaders(true),
+      }
+    );
+    return handleResponse<UsuarioSistema>(res);
+  }
 };
