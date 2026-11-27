@@ -53,22 +53,16 @@ public class PdfExtractorService {
                     .trim();
     }
 
-    // ==========================================
-    // MÓDULO LA PREVISORA S.A.
-    // ==========================================
     private void extraerPrevisora(String texto, Poliza poliza) {
         String upper = texto.toUpperCase();
 
-        // 1. Placa
         String placa = extraerPlaca(upper);
         if (placa != null) {
             poliza.setPlaca(placa);
         }
 
-        // 2. Tipo de vehículo
         extraerTipoVehiculo(upper, poliza);
 
-        // 3. Marca y Línea
         String marca = null;
         String linea = null;
 
@@ -95,7 +89,6 @@ public class PdfExtractorService {
             poliza.setMarcaLinea(marca != null ? marca : linea);
         }
 
-        // 4. Cilindraje / Vatios y Modelo -> Edad del vehículo
         Integer cilindraje = extraerCilindrajePrevisora(upper);
         if (cilindraje != null) {
             poliza.setCilindraje(cilindraje);
@@ -103,13 +96,10 @@ public class PdfExtractorService {
 
         Integer modeloAnio = extraerModeloPrevisora(upper, cilindraje);
 
-        // 5. Capacidad en toneladas
         poliza.setCapacidadToneladas(extraerCapacidadToneladas(upper));
 
-        // 6. Propietario en Previsora
         poliza.setPropietario(extraerNombrePorEtiqueta(upper));
 
-        // 7. Tipo y Número de Documento
         Pattern patronTipoDoc = Pattern.compile("TIPO\\s+DE\\s*DOCUMENT\\s*O\\s*(?:DEL\\s+TOMADOR)?\\s*:?\\s*\\b(CC|CE|TI|NIT|PA)\\b");
         Matcher matcherTipoDoc = patronTipoDoc.matcher(upper);
         if (matcherTipoDoc.find()) {
@@ -138,7 +128,6 @@ public class PdfExtractorService {
             }
         }
 
-        // 8. Fechas en Previsora
         List<LocalDate> fechasIso = extraerFechasIso(upper);
         if (fechasIso.size() >= 3) {
             poliza.setDesde(fechasIso.get(1));
@@ -153,22 +142,16 @@ public class PdfExtractorService {
         poliza.setEdadVehiculo(calcularEdadDesdeModelo(modeloAnio, poliza.getDesde()));
     }
 
-    // ==========================================
-    // MÓDULO AXA COLPATRIA
-    // ==========================================
     private void extraerAxaColpatria(String texto, Poliza poliza) {
         String upper = texto.toUpperCase();
 
-        // 1. Placa
         String placa = extraerPlaca(upper);
         if (placa != null) {
             poliza.setPlaca(placa);
         }
 
-        // 2. Tipo de vehículo
         extraerTipoVehiculo(upper, poliza);
 
-        // 3. Marca y Línea
         String marca = null;
         String linea = null;
 
@@ -208,7 +191,6 @@ public class PdfExtractorService {
             poliza.setMarcaLinea(marca != null ? marca : linea);
         }
 
-        // 4. Cilindraje y Modelo -> Edad del vehículo
         Integer cilindraje = null;
         Pattern patronCilindraje = Pattern.compile("CILINDRAJE(?:\\s*/\\s*VATIOS)?\\s*:?\\s*(\\d{2,4})");
         Matcher matcherCilindraje = patronCilindraje.matcher(upper);
@@ -224,10 +206,8 @@ public class PdfExtractorService {
             }
         }
 
-        // 5. Capacidad en toneladas
         poliza.setCapacidadToneladas(extraerCapacidadToneladas(upper));
 
-        // 6. Propietario y Documento en AXA
         poliza.setPropietario(extraerNombrePorEtiqueta(upper));
 
         Pattern patronDoc = Pattern.compile("(?:No\\.?\\s*DE\\s*DOCUMENTO(?:\\s+DEL\\s+TOMADOR)?|C\\.?C\\.?)\\s*:?\\s*(\\d{6,12})");
@@ -237,7 +217,6 @@ public class PdfExtractorService {
             poliza.setTipoDocumento("CC");
         }
 
-        // 7. Fechas
         extraerFechasPorColumnas(upper, poliza);
         if (poliza.getDesde() == null || poliza.getHasta() == null) {
             List<LocalDate> fechasIso = extraerFechasIso(upper);
@@ -258,7 +237,6 @@ public class PdfExtractorService {
         int anioDesde = (desde != null) ? desde.getYear() : -1;
         int anioHasta = (hasta != null) ? hasta.getYear() : -1;
 
-        // 1. Buscar año después de la etiqueta MODELO
         int idxModelo = upper.indexOf("MODELO");
         if (idxModelo >= 0) {
             String tramo = upper.substring(idxModelo, Math.min(idxModelo + 250, upper.length()));
@@ -271,7 +249,6 @@ public class PdfExtractorService {
             }
         }
 
-        // 2. Buscar año cercano al cilindraje (ej. "1248 ... 2012")
         if (cilindraje != null) {
             Matcher mCil = Pattern.compile("\\b" + cilindraje + "\\b.{0,80}?\\b((?:19|20)\\d{2})\\b").matcher(upper);
             while (mCil.find()) {
@@ -282,7 +259,6 @@ public class PdfExtractorService {
             }
         }
 
-        // 3. Respaldo en zona superior antes de TOMADOR / TARIFA
         int corte = upper.length();
         for (String hito : new String[]{"APELLIDOS", "TOMADOR", "TARIFA", "PRIMA SOAT"}) {
             int pos = upper.indexOf(hito);
@@ -301,9 +277,6 @@ public class PdfExtractorService {
         return null;
     }
 
-    // ==========================================
-    // EXTRACCIÓN UNIFICADA DE NOMBRE TOMADOR
-    // ==========================================
     private String extraerNombrePorEtiqueta(String upper) {
         Pattern pEtiqueta = Pattern.compile(
                 "APELLIDOS\\s+Y\\s+NOMBRES(?:\\s+DEL\\s+TOMADOR)?\\s*:?\\s*(.{5,220})"

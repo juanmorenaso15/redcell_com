@@ -16,11 +16,9 @@ public class PolizaUpdateDTO {
     private String marcaLinea;
     private Integer cilindraje;
     private String aseguradora;
-    
-    // --- Nuevos campos ---
     private Integer edadVehiculo;
     private BigDecimal capacidadToneladas;
-
+    private BigDecimal usoPlataforma;
     private String telefono;
     private String email;
 }

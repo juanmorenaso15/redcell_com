@@ -32,7 +32,6 @@ public class HistorialRecordatorioSoat {
     @Column(name = "placa", nullable = false)
     private String placa;
 
-    // MES_1, DIAS_5, DIA_1, HOY
     @Column(name = "tipo_recordatorio", nullable = false)
     private String tipoRecordatorio;
 

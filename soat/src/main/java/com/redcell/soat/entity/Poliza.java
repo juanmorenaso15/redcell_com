@@ -46,8 +46,6 @@ public class Poliza {
     @Column(name = "aseguradora")
     private String aseguradora;
 
-    // --- NUEVOS CAMPOS PARA CÁLCULO DE TARIFAS ---
-    
     @Column(name = "edad_vehiculo")
     private Integer edadVehiculo;
 
@@ -63,15 +61,11 @@ public class Poliza {
     @Column(name = "total_pagar", precision = 10, scale = 2)
     private BigDecimal totalPagar;
 
-    // ---------------------------------------------
-
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-        // --- NUEVO CAMPO ---
     @Column(name = "activo")
     private Boolean activo = true;
-    // -------------------
 
     @Column(name = "telefono")
     private String telefono;
