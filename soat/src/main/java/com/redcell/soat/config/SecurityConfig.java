@@ -43,8 +43,9 @@ public class SecurityConfig {
                 "http://localhost:*",
                 "http://127.0.0.1:*",
                 "https://*.vercel.app",
-                "https://*.onrender.com"
-        ));
+                "https://*.onrender.com",
+                "https://redcell-web.pulsegym2026.workers.dev",
+                "https://*.workers.dev"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         configuration.setExposedHeaders(List.of("Authorization"));
@@ -59,43 +60,43 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(Customizer.withDefaults())
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .headers(headers -> headers
-                .frameOptions(frame -> frame.deny())
-                .contentTypeOptions(Customizer.withDefaults())
-                .referrerPolicy(ref -> ref.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
-            )
-            .exceptionHandling(ex -> ex
-                .authenticationEntryPoint((request, response, authException) -> {
-                    response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    response.setCharacterEncoding("UTF-8");
-                    response.getWriter().write("{\"status\":401,\"message\":\"No autorizado o token inválido\"}");
-                })
-                .accessDeniedHandler((request, response, accessDeniedException) -> {
-                    response.setStatus(HttpStatus.FORBIDDEN.value());
-                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    response.setCharacterEncoding("UTF-8");
-                    response.getWriter().write("{\"status\":403,\"message\":\"No tienes permisos para realizar esta acción\"}");
-                })
-            )
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(
-                        "/api/auth/login",
-                        "/api/auth/forgot-password",
-                        "/api/auth/reset-password",
-                        "/api/health"
-                ).permitAll()
-                .requestMatchers("/api/auth/register").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/configuracion-tarifas/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/configuracion-tarifas/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/configuracion-tarifas/**").hasRole("ADMIN")
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .cors(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .referrerPolicy(ref -> ref
+                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter()
+                                    .write("{\"status\":401,\"message\":\"No autorizado o token inválido\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpStatus.FORBIDDEN.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write(
+                                    "{\"status\":403,\"message\":\"No tienes permisos para realizar esta acción\"}");
+                        }))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password",
+                                "/api/health")
+                        .permitAll()
+                        .requestMatchers("/api/auth/register").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/configuracion-tarifas/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/configuracion-tarifas/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/configuracion-tarifas/**").hasRole("ADMIN")
+                        .anyRequest().authenticated())
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
