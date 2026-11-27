@@ -27,20 +27,20 @@ interface DetallePolizaModalProps {
 }
 
 const EMOJI = {
-  sparkle: '\u2728',
-  hourglass: '\u23F3',
-  user: '\u{1F464}',
-  id: '\u{1F194}',
-  pointRight: '\u{1F449}',
-  calendar: '\u{1F4C5}',
-  moneyBag: '\u{1F4B0}',
-  gear: '\u2699',
-  dollar: '\u{1F4B5}',
-  redCircle: '\u{1F534}',
-  manOffice: '\u{1F935}',
-  phone: '\u{1F4DE}',
-  pin: '\u{1F4CD}',
-  city: '\u{1F3D9}',
+  sparkle: String.fromCodePoint(0x2728),
+  hourglass: String.fromCodePoint(0x23f3),
+  user: String.fromCodePoint(0x1f464),
+  id: String.fromCodePoint(0x1f194),
+  pointRight: String.fromCodePoint(0x1f449),
+  calendar: String.fromCodePoint(0x1f4c5),
+  moneyBag: String.fromCodePoint(0x1f4b0),
+  gear: String.fromCodePoint(0x2699),
+  dollar: String.fromCodePoint(0x1f4b5),
+  redCircle: String.fromCodePoint(0x1f534),
+  manOffice: String.fromCodePoint(0x1f935),
+  phone: String.fromCodePoint(0x1f4de),
+  pin: String.fromCodePoint(0x1f4cd),
+  city: String.fromCodePoint(0x1f3d9),
 } as const;
 
 function formatFechaDdMmYyyy(isoOrDate?: string | null): string {
@@ -70,7 +70,7 @@ function construirDescripcionVehiculo(poliza: Poliza): string {
   return 'Vehículo';
 }
 
-function construirMensajeWhatsapp(poliza: Poliza, etiquetaPlazo?: string): string {
+function construirMensajeWhatsappConEmojis(poliza: Poliza, etiquetaPlazo?: string): string {
   const totalPagar = Number(poliza.totalPagar || 0);
   const usoPlataforma = Number(poliza.usoPlataforma || 0);
   const valorSoatCalculado =
@@ -142,12 +142,12 @@ export function DetallePolizaModal({
   const alertasPoliza = alertas.filter((a) => a.polizaId === poliza.id);
   const alertaActiva = alertasPoliza[0];
 
-  const textoWhatsapp = construirMensajeWhatsapp(poliza, alertaActiva?.etiqueta);
-  const waUrl = buildWhatsappLink(poliza.telefono, textoWhatsapp);
+  const textoConEmojis = construirMensajeWhatsappConEmojis(poliza, alertaActiva?.etiqueta);
+  const waUrl = buildWhatsappLink(poliza.telefono, textoConEmojis);
 
   const handleCopiar = async () => {
     try {
-      await navigator.clipboard.writeText(textoWhatsapp);
+      await navigator.clipboard.writeText(textoConEmojis);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
     } catch {
@@ -383,7 +383,7 @@ export function DetallePolizaModal({
 
         {avisoWhatsapp && (
           <p className="text-xs text-[#16A34A] font-medium mb-3">
-            Mensaje copiado al portapapeles como respaldo por si WhatsApp muestra símbolos en el enlace.
+            Mensaje con emojis enviado en el enlace y copiado al portapapeles como respaldo.
           </p>
         )}
 
@@ -421,9 +421,9 @@ export function DetallePolizaModal({
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => {
-                  navigator.clipboard?.writeText(textoWhatsapp).catch(() => {});
+                  navigator.clipboard?.writeText(textoConEmojis).catch(() => {});
                   setAvisoWhatsapp(true);
-                  setTimeout(() => setAvisoWhatsapp(false), 4000);
+                  setTimeout(() => setAvisoWhatsapp(false), 5000);
                 }}
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold"
                 style={{ textDecoration: 'none' }}

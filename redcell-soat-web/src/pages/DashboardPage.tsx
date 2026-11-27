@@ -279,8 +279,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 {alertas.map((alerta) => {
                   const key = `${alerta.polizaId}-${alerta.tipoRecordatorio}`;
-                  const waLink =
-                    alerta.whatsappUrl || buildWhatsappLink(alerta.telefono, alerta.mensajeAlerta);
+                  const waLink = buildWhatsappLink(alerta.telefono, alerta.mensajeAlerta);
 
                   return (
                     <div

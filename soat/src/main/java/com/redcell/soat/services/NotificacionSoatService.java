@@ -35,6 +35,25 @@ public class NotificacionSoatService {
 
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
+    private static final String EMOJI_SPARKLE = emoji(0x2728);
+    private static final String EMOJI_HOURGLASS = emoji(0x23F3);
+    private static final String EMOJI_USER = emoji(0x1F464);
+    private static final String EMOJI_ID = emoji(0x1F194);
+    private static final String EMOJI_POINT_RIGHT = emoji(0x1F449);
+    private static final String EMOJI_CALENDAR = emoji(0x1F4C5);
+    private static final String EMOJI_MONEY_BAG = emoji(0x1F4B0);
+    private static final String EMOJI_GEAR = emoji(0x2699);
+    private static final String EMOJI_DOLLAR = emoji(0x1F4B5);
+    private static final String EMOJI_RED_CIRCLE = emoji(0x1F534);
+    private static final String EMOJI_MAN_OFFICE = emoji(0x1F935);
+    private static final String EMOJI_PHONE = emoji(0x1F4DE);
+    private static final String EMOJI_PIN = emoji(0x1F4CD);
+    private static final String EMOJI_CITY = emoji(0x1F3D9);
+
+    private static String emoji(int codePoint) {
+        return new String(Character.toChars(codePoint));
+    }
+
     public Map<String, Object> notificarPoliza(
             Poliza poliza,
             String telefonoOverride,
@@ -116,26 +135,26 @@ public class NotificacionSoatService {
         String venceEl = poliza.getHasta() != null ? poliza.getHasta().format(FORMATO_FECHA) : "Sin fecha";
 
         StringBuilder sb = new StringBuilder();
-        sb.append("✨ *RECORDATORIO DE SOAT* ✨\n\n");
+        sb.append(EMOJI_SPARKLE).append(" *RECORDATORIO DE SOAT* ").append(EMOJI_SPARKLE).append("\n\n");
 
         if (etiquetaPlazo != null && !etiquetaPlazo.isBlank()) {
-            sb.append("⏳ *Aviso:* ").append(etiquetaPlazo).append("\n\n");
+            sb.append(EMOJI_HOURGLASS).append(" *Aviso:* ").append(etiquetaPlazo).append("\n\n");
         }
 
         sb.append("Muy buenos dias. Le informamos que el SOAT para el vehículo de:\n\n");
-        sb.append("👤 *PROPIETARIO:* ").append(propietario).append("\n");
-        sb.append("🆔 *DOCUMENTO:* ").append(documentoCompleto).append("\n");
-        sb.append("👉 *VEHÍCULO:* (").append(placa).append(") - ").append(vehiculoDetalle).append("\n\n");
-        sb.append("🗓️ *VENCE EL:* ").append(venceEl).append("\n");
-        sb.append("💰 *VALOR SOAT:* $").append(formatearMonedaExcel(valorSoat)).append("\n");
-        sb.append("⚙️ *USO PLATAFORMA:* $").append(formatearMonedaExcel(usoPlataforma)).append("\n");
-        sb.append("💵 *TOTAL A PAGAR:* $").append(formatearMonedaExcel(totalPagar)).append("\n\n");
-        sb.append("--------------------------------------------\n\n\n");
-        sb.append("🔴 *Más info:* REDCELL.COM\n\n");
-        sb.append("🤵 *Atendido por:* Yhan Alejandro Moreno Gonzalez\n\n");
-        sb.append("📞 *WhatsApp:* 3117034142\n\n");
-        sb.append("📍 *Ubicación:* Calle 23 No 15-35 (Por Ventanilla verde)\n\n");
-        sb.append("🏙️ Armenia, Quindío");
+        sb.append(EMOJI_USER).append(" *PROPIETARIO:* ").append(propietario).append("\n");
+        sb.append(EMOJI_ID).append(" *DOCUMENTO:* ").append(documentoCompleto).append("\n");
+        sb.append(EMOJI_POINT_RIGHT).append(" *VEHÍCULO:* (").append(placa).append(") - ").append(vehiculoDetalle).append("\n\n");
+        sb.append(EMOJI_CALENDAR).append(" *VENCE EL:* ").append(venceEl).append("\n");
+        sb.append(EMOJI_MONEY_BAG).append(" *VALOR SOAT:* $").append(formatearMonedaExcel(valorSoat)).append("\n");
+        sb.append(EMOJI_GEAR).append(" *USO PLATAFORMA:* $").append(formatearMonedaExcel(usoPlataforma)).append("\n");
+        sb.append(EMOJI_DOLLAR).append(" *TOTAL A PAGAR:* $").append(formatearMonedaExcel(totalPagar)).append("\n\n");
+        sb.append("--------------------------------------------\n\n");
+        sb.append(EMOJI_RED_CIRCLE).append(" *Más info:* REDCELL.COM\n\n");
+        sb.append(EMOJI_MAN_OFFICE).append(" *Atendido por:* Yhan Alejandro Moreno Gonzalez\n\n");
+        sb.append(EMOJI_PHONE).append(" *WhatsApp:* 3117034142\n\n");
+        sb.append(EMOJI_PIN).append(" *Ubicación:* Calle 23 No 15-35 (Por Ventanilla verde)\n\n");
+        sb.append(EMOJI_CITY).append(" Armenia, Quindío");
 
         return sb.toString();
     }
