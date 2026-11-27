@@ -235,14 +235,16 @@ export function DetallePolizaModal({
         backdropFilter: 'blur(2px)',
         WebkitBackdropFilter: 'blur(2px)',
         zIndex: 50,
+        overflowY: 'auto',
       }}
-      className="flex items-center justify-center p-4 sm:p-6 overflow-hidden"
+      className="flex items-start sm:items-center justify-center p-3 sm:p-6"
     >
       <div
         onMouseDown={(e) => e.stopPropagation()}
         style={{
-          overflow: 'hidden',
-          padding: '1.5rem 1.75rem',
+          padding: '1.25rem 1.5rem',
+          maxHeight: '92vh',
+          overflowY: 'auto',
         }}
         className="bg-white rounded-2xl border border-[#E2E8F0] w-full max-w-4xl shadow-2xl mx-auto"
       >
@@ -250,7 +252,7 @@ export function DetallePolizaModal({
         <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-[#E2E8F0]">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 text-xl sm:text-2xl font-bold text-[#0F172A] font-headline">
+              <span className="inline-flex items-center gap-1.5 text-lg sm:text-2xl font-bold text-[#0F172A] font-headline">
                 <ShieldCheck size={22} className="text-[#DC2626] shrink-0" />
                 {poliza.placa}
               </span>
@@ -283,25 +285,17 @@ export function DetallePolizaModal({
         </div>
 
         {/* Resumen financiero */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            marginTop: '1rem',
-            marginBottom: '1rem',
-          }}
-          className="border border-[#E2E8F0] rounded-xl overflow-hidden bg-[#F8FAFC]"
-        >
-          <div className="px-4 py-2.5 bg-white border-r border-[#E2E8F0]">
+        <div className="modal-finanzas-grid border border-[#E2E8F0] rounded-xl overflow-hidden bg-[#F8FAFC]">
+          <div className="px-4 py-2.5 bg-white border-b sm:border-b-0 sm:border-r border-[#E2E8F0]">
             <div className="text-[11px] font-medium text-[#64748B]">Valor SOAT</div>
-            <div className="text-lg font-bold text-[#0F172A] mt-0.5 font-headline">
+            <div className="text-base sm:text-lg font-bold text-[#0F172A] mt-0.5 font-headline">
               {formatMonedaRedcell(poliza.precioSoat)}
             </div>
           </div>
 
-          <div className="px-4 py-2.5 bg-white border-r border-[#E2E8F0]">
+          <div className="px-4 py-2.5 bg-white border-b sm:border-b-0 sm:border-r border-[#E2E8F0]">
             <div className="text-[11px] font-medium text-[#64748B]">Uso de plataforma</div>
-            <div className="text-lg font-bold text-[#16A34A] mt-0.5 font-headline">
+            <div className="text-base sm:text-lg font-bold text-[#16A34A] mt-0.5 font-headline">
               {formatMonedaRedcell(poliza.usoPlataforma)}
             </div>
           </div>
@@ -314,46 +308,39 @@ export function DetallePolizaModal({
           </div>
         </div>
 
-        {/* Dos cuadros lado a lado */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-            gap: '1rem',
-            marginBottom: '1rem',
-          }}
-        >
+        {/* Dos cuadros lado a lado en tablet/escritorio, apilados en móvil */}
+        <div className="modal-datos-grid">
           <div className="border border-[#E2E8F0] rounded-xl p-4 bg-white min-w-0">
             <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#0F172A] pb-2 mb-1 border-b border-[#E2E8F0]">
-              <Car size={14} className="text-[#DC2626]" />
+              <Car size={14} className="text-[#DC2626] shrink-0" />
               Datos del vehículo
             </div>
 
             <div className="divide-y divide-[#F1F5F9] text-xs sm:text-sm">
               <div className="py-1.5 flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Clase / Tipo</span>
+                <span className="text-[#64748B] shrink-0">Clase / Tipo</span>
                 <span className="font-semibold text-[#0F172A] text-right truncate">
                   {poliza.tipoVehiculo || '—'}
                 </span>
               </div>
               <div className="py-1.5 flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Marca y línea</span>
+                <span className="text-[#64748B] shrink-0">Marca y línea</span>
                 <span className="font-semibold text-[#0F172A] text-right truncate">
                   {poliza.marcaLinea || '—'}
                 </span>
               </div>
               <div className="py-1.5 flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Cilindraje</span>
+                <span className="text-[#64748B] shrink-0">Cilindraje</span>
                 <span className="font-semibold text-[#0F172A]">
                   {poliza.cilindraje ? `${poliza.cilindraje} cc` : '—'}
                 </span>
               </div>
               <div className="py-1.5 flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Edad del vehículo</span>
+                <span className="text-[#64748B] shrink-0">Edad del vehículo</span>
                 <span className="font-semibold text-[#0F172A]">{poliza.edadVehiculo ?? 0} años</span>
               </div>
               <div className="py-1.5 flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Capacidad</span>
+                <span className="text-[#64748B] shrink-0">Capacidad</span>
                 <span className="font-semibold text-[#0F172A]">
                   {poliza.capacidadToneladas ?? 0} ton
                 </span>
@@ -363,28 +350,28 @@ export function DetallePolizaModal({
 
           <div className="border border-[#E2E8F0] rounded-xl p-4 bg-white min-w-0">
             <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#0F172A] pb-2 mb-1 border-b border-[#E2E8F0]">
-              <User size={14} className="text-[#0F172A]" />
+              <User size={14} className="text-[#0F172A] shrink-0" />
               Propietario y vigencia
             </div>
 
             <div className="divide-y divide-[#F1F5F9] text-xs sm:text-sm">
               <div className="py-1.5 flex items-center justify-between gap-2">
-                <span className="text-[#64748B]">Propietario</span>
+                <span className="text-[#64748B] shrink-0">Propietario</span>
                 <span className="font-semibold text-[#0F172A] text-right truncate">
                   {poliza.propietario || '—'}
                 </span>
               </div>
               <div className="py-1.5 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[#64748B]">
+                <span className="inline-flex items-center gap-1.5 text-[#64748B] shrink-0">
                   <FileText size={13} />
                   Identificación
                 </span>
-                <span className="font-semibold text-[#0F172A]">
+                <span className="font-semibold text-[#0F172A] text-right truncate">
                   {poliza.tipoDocumento || 'DOC'} {poliza.documento ?? '—'}
                 </span>
               </div>
               <div className="py-1.5 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[#64748B]">
+                <span className="inline-flex items-center gap-1.5 text-[#64748B] shrink-0">
                   <Calendar size={13} />
                   Vigencia
                 </span>
@@ -400,16 +387,16 @@ export function DetallePolizaModal({
                 </span>
               </div>
               <div className="py-1.5 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[#64748B]">
+                <span className="inline-flex items-center gap-1.5 text-[#64748B] shrink-0">
                   <Phone size={13} className="text-[#16A34A]" />
                   Teléfono
                 </span>
-                <span className="font-medium text-[#0F172A]">
+                <span className="font-medium text-[#0F172A] text-right truncate">
                   {poliza.telefono || 'Sin registrar'}
                 </span>
               </div>
               <div className="py-1.5 flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[#64748B]">
+                <span className="inline-flex items-center gap-1.5 text-[#64748B] shrink-0">
                   <Mail size={13} />
                   Correo
                 </span>
@@ -424,7 +411,7 @@ export function DetallePolizaModal({
         {/* Recordatorios */}
         <div className="border border-[#E2E8F0] rounded-xl px-4 py-2.5 bg-[#F8FAFC] mb-4">
           <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#0F172A] mb-0.5">
-            <Bell size={13} className="text-[#D97706]" />
+            <Bell size={13} className="text-[#D97706] shrink-0" />
             Recordatorios de vencimiento ({alertasPoliza.length})
           </div>
 
@@ -471,17 +458,17 @@ export function DetallePolizaModal({
         </div>
 
         {/* Acciones inferiores */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 border-t border-[#E2E8F0]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-[#E2E8F0]">
           <button
             type="button"
             onClick={handleCopiar}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] cursor-pointer w-full sm:w-auto"
           >
             {copiado ? <Check size={14} className="text-[#16A34A]" /> : <Copy size={14} />}
             {copiado ? 'Mensaje copiado' : 'Copiar mensaje'}
           </button>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
             {onSendEmail && (
               <button
                 type="button"
@@ -492,7 +479,7 @@ export function DetallePolizaModal({
                     ? `Enviar recordatorio a ${poliza.email.trim()}`
                     : 'Sin correo registrado'
                 }
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F8FAFC] text-xs font-semibold text-[#0F172A] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex-1 sm:flex-initial"
               >
                 <Mail size={14} className="text-[#0E3B72]" />
                 {enviandoCorreo ? 'Enviando correo...' : 'Enviar correo'}
@@ -505,7 +492,7 @@ export function DetallePolizaModal({
                 target="_blank"
                 rel="noreferrer"
                 onClick={handleAbrirWhatsapp}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold flex-1 sm:flex-initial whitespace-nowrap"
                 style={{ textDecoration: 'none' }}
               >
                 <ExternalLink size={14} />
@@ -523,7 +510,7 @@ export function DetallePolizaModal({
                 onClose();
                 onEdit(poliza);
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-semibold border-0 cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0F172A] hover:bg-[#1E293B] text-white text-xs font-semibold border-0 cursor-pointer flex-1 sm:flex-initial whitespace-nowrap"
             >
               <Edit3 size={14} />
               Editar póliza

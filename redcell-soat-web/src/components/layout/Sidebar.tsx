@@ -1,4 +1,4 @@
-import { Bell, Coins, LogOut, Settings, ShieldCheck, UserPlus } from 'lucide-react';
+import { Bell, Coins, LogOut, Settings, ShieldCheck, UserPlus, X } from 'lucide-react';
 
 export type SidebarSection = 'polizas' | 'alertas' | 'tarifas' | 'usuarios' | 'configuracion';
 
@@ -8,6 +8,8 @@ interface SidebarProps {
   alertasCount: number;
   tarifaActivaValor?: number;
   onLogout: () => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export function Sidebar({
@@ -16,41 +18,51 @@ export function Sidebar({
   alertasCount,
   tarifaActivaValor,
   onLogout,
+  mobileOpen = false,
+  onCloseMobile,
 }: SidebarProps) {
-  return (
-    <aside
-      style={{
-        position: 'fixed',
-        top: '1.25rem',
-        left: '1.25rem',
-        width: '16.5rem',
-        height: 'calc(100vh - 2.5rem)',
-        padding: '1.75rem 1.35rem',
-        boxSizing: 'border-box',
-        zIndex: 30,
-      }}
-      className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm flex flex-col justify-between overflow-y-auto"
-    >
+  const handleSelect = (section: SidebarSection) => {
+    onSelectSection(section);
+    onCloseMobile?.();
+  };
+
+  const contenidoSidebar = (
+    <>
       <div className="min-h-0 w-full">
-        <div className="flex items-center gap-3 pb-6 mb-2 border-b border-[#E2E8F0] px-1">
-          <img
-            src="/logo-redcell.png"
-            alt="RedCell"
-            className="h-9 w-auto object-contain shrink-0"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.display = 'none';
-            }}
-          />
-          <div className="min-w-0">
-            <div className="font-bold text-base leading-tight font-headline">RedCell SOAT</div>
-            <div className="text-[11px] text-[#64748B] mt-0.5">Armenia · Quindío</div>
+        <div className="flex items-center justify-between gap-2 pb-6 mb-2 border-b border-[#E2E8F0] px-1">
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              src="/logo-redcell.png"
+              alt="RedCell"
+              className="h-9 w-auto object-contain shrink-0"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = 'none';
+              }}
+            />
+            <div className="min-w-0">
+              <div className="font-bold text-base leading-tight font-headline truncate">
+                RedCell SOAT
+              </div>
+              <div className="text-[11px] text-[#64748B] mt-0.5 truncate">Armenia · Quindío</div>
+            </div>
           </div>
+
+          {onCloseMobile && (
+            <button
+              type="button"
+              onClick={onCloseMobile}
+              aria-label="Cerrar menú lateral"
+              className="md:hidden p-1.5 rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] hover:text-[#0F172A] cursor-pointer shrink-0"
+            >
+              <X size={16} />
+            </button>
+          )}
         </div>
 
         <nav className="mt-5 space-y-2.5">
           <button
             type="button"
-            onClick={() => onSelectSection('polizas')}
+            onClick={() => handleSelect('polizas')}
             className={
               activeSection === 'polizas'
                 ? 'w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-red-50 text-[#DC2626] font-semibold text-sm cursor-pointer border-0 text-left transition-colors'
@@ -65,7 +77,7 @@ export function Sidebar({
 
           <button
             type="button"
-            onClick={() => onSelectSection('alertas')}
+            onClick={() => handleSelect('alertas')}
             className={
               activeSection === 'alertas'
                 ? 'w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-amber-100 text-[#0F172A] font-semibold text-sm cursor-pointer border-0 text-left transition-colors'
@@ -83,7 +95,7 @@ export function Sidebar({
 
           <button
             type="button"
-            onClick={() => onSelectSection('tarifas')}
+            onClick={() => handleSelect('tarifas')}
             className={
               activeSection === 'tarifas'
                 ? 'w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-red-50 text-[#16A34A] font-semibold text-sm cursor-pointer border-0 text-left transition-colors'
@@ -103,7 +115,7 @@ export function Sidebar({
 
           <button
             type="button"
-            onClick={() => onSelectSection('usuarios')}
+            onClick={() => handleSelect('usuarios')}
             className={
               activeSection === 'usuarios'
                 ? 'w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-red-50 text-[#DC2626] font-semibold text-sm cursor-pointer border-0 text-left transition-colors'
@@ -118,7 +130,7 @@ export function Sidebar({
 
           <button
             type="button"
-            onClick={() => onSelectSection('configuracion')}
+            onClick={() => handleSelect('configuracion')}
             className={
               activeSection === 'configuracion'
                 ? 'w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl bg-[#F1F5F9] text-[#0F172A] font-semibold text-sm cursor-pointer border-0 text-left transition-colors'
@@ -143,6 +155,55 @@ export function Sidebar({
           <span>Cerrar sesión</span>
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Sidebar fijo en escritorio (md+) */}
+      <aside
+        style={{
+          position: 'fixed',
+          top: '1.25rem',
+          left: '1.25rem',
+          width: '16.5rem',
+          height: 'calc(100vh - 2.5rem)',
+          padding: '1.75rem 1.35rem',
+          boxSizing: 'border-box',
+          zIndex: 30,
+        }}
+        className="hidden md:flex bg-white border border-[#E2E8F0] rounded-2xl shadow-sm flex-col justify-between overflow-y-auto"
+      >
+        {contenidoSidebar}
+      </aside>
+
+      {/* Drawer móvil (< md) */}
+      {mobileOpen && (
+        <div
+          onMouseDown={onCloseMobile}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            zIndex: 40,
+          }}
+          className="md:hidden flex"
+        >
+          <aside
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              width: '17rem',
+              maxWidth: '85vw',
+              height: '100%',
+              padding: '1.5rem 1.25rem',
+              boxSizing: 'border-box',
+            }}
+            className="bg-white border-r border-[#E2E8F0] shadow-2xl flex flex-col justify-between overflow-y-auto"
+          >
+            {contenidoSidebar}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

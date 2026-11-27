@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Eye,
   LogOut,
+  Menu,
   Plus,
   ShieldCheck,
   UserPlus,
@@ -55,9 +56,13 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
   const [aseguradoraFilter, setAseguradoraFilter] = useState('TODAS');
   const [tipoVehiculoFilter, setTipoVehiculoFilter] = useState('TODOS');
   const [vigenciaFilter, setVigenciaFilter] = useState<EstadoVigenciaFilter>('TODOS');
-  const [soloPendientesWhatsapp, setSoloPendientesWhatsapp] = useState(false);
+  const [soloPendientesWhatsapp] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<SidebarSection>('polizas');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
+  );
 
   const [uploadOpen, setUploadOpen] = useState(false);
   const [viewingPoliza, setViewingPoliza] = useState<Poliza | null>(null);
@@ -65,6 +70,17 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
   const [markingKey, setMarkingKey] = useState<string | null>(null);
 
   const usuario = useMemo(() => obtenerUsuarioSesion(), [sesionTick]);
+
+  useEffect(() => {
+    const actualizarViewport = () => {
+      setIsDesktop(window.innerWidth >= 768);
+      if (window.innerWidth >= 768) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', actualizarViewport);
+    return () => window.removeEventListener('resize', actualizarViewport);
+  }, []);
 
   const cargarDatos = useCallback(async () => {
     setLoading(true);
@@ -351,8 +367,17 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#F8FAFC] text-[#0F172A] w-full">
-      <div className="flex md:hidden items-center justify-between gap-3 px-4 py-3 bg-white border-b border-[#E2E8F0]">
-        <div className="flex items-center gap-2 min-w-0">
+      {/* Barra superior móvil (< md) */}
+      <div className="flex md:hidden items-center justify-between gap-2 px-4 py-3 bg-white border-b border-[#E2E8F0] w-full">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Abrir menú"
+            className="p-2 rounded-lg border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F8FAFC] cursor-pointer shrink-0"
+          >
+            <Menu size={18} />
+          </button>
           <img
             src="/logo-redcell.png"
             alt="RedCell"
@@ -370,6 +395,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
             </div>
           </div>
         </div>
+
         <button
           type="button"
           onClick={onUnauthorized}
@@ -386,18 +412,20 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
         alertasCount={alertas.length}
         tarifaActivaValor={tarifaActiva?.valor}
         onLogout={onUnauthorized}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
       />
 
       <main
         style={{
-          paddingLeft: '20.5rem',
-          paddingRight: '2.5rem',
-          paddingTop: '2.5rem',
-          paddingBottom: '2.5rem',
+          paddingLeft: isDesktop ? '19.5rem' : '1rem',
+          paddingRight: isDesktop ? '2rem' : '1rem',
+          paddingTop: isDesktop ? '2rem' : '1.25rem',
+          paddingBottom: isDesktop ? '2.5rem' : '2rem',
         }}
         className="flex-1 min-w-0 max-w-none w-full"
       >
-        <div className="w-full px-3 sm:px-5 lg:px-6 space-y-7">
+        <div className="w-full px-0 sm:px-2 lg:px-4 space-y-6">
           <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pt-1">
             <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] m-0 font-headline">
@@ -406,15 +434,15 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
               <p className="text-xs sm:text-sm text-[#64748B] mt-1.5 mb-0">{subtituloHeader}</p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 shrink-0">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setActiveSection('polizas')}
                   className={
                     activeSection === 'polizas'
-                      ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white'
-                      : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                      ? 'inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white flex-1 sm:flex-initial'
+                      : 'inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9] flex-1 sm:flex-initial'
                   }
                 >
                   <ShieldCheck size={16} className="shrink-0" />
@@ -426,8 +454,8 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
                   onClick={() => setActiveSection('alertas')}
                   className={
                     activeSection === 'alertas'
-                      ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#D97706] bg-[#D97706] text-white'
-                      : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                      ? 'inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#D97706] bg-[#D97706] text-white flex-1 sm:flex-initial'
+                      : 'inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9] flex-1 sm:flex-initial'
                   }
                 >
                   <Bell size={16} className="shrink-0" />
@@ -439,8 +467,8 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
                   onClick={() => setActiveSection('tarifas')}
                   className={
                     activeSection === 'tarifas'
-                      ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#16A34A] bg-[#16A34A] text-white'
-                      : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                      ? 'inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#16A34A] bg-[#16A34A] text-white flex-1 sm:flex-initial'
+                      : 'inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9] flex-1 sm:flex-initial'
                   }
                 >
                   <Coins size={16} className="shrink-0" />
@@ -452,8 +480,8 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
                   onClick={() => setActiveSection('usuarios')}
                   className={
                     activeSection === 'usuarios'
-                      ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white'
-                      : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                      ? 'inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white flex-1 sm:flex-initial'
+                      : 'inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9] flex-1 sm:flex-initial'
                   }
                 >
                   <UserPlus size={16} className="shrink-0" />
@@ -463,7 +491,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
                 <button
                   type="button"
                   onClick={() => setUploadOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border-0"
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border-0 w-full sm:w-auto"
                 >
                   <Plus size={16} className="shrink-0" />
                   Subir SOAT PDF
@@ -474,7 +502,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
                 type="button"
                 onClick={() => setActiveSection('configuracion')}
                 title="Abrir configuración de perfil"
-                className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] shadow-sm shrink-0 cursor-pointer text-left"
+                className="hidden sm:flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] shadow-sm shrink-0 cursor-pointer text-left"
               >
                 <img
                   src="/logo-redcell.png"
@@ -551,7 +579,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
               onIrATarifas={() => setActiveSection('tarifas')}
             />
           ) : (
-            <section className="bg-white border border-[#E2E8F0] rounded-xl p-5 space-y-4">
+            <section className="bg-white border border-[#E2E8F0] rounded-xl p-4 sm:p-5 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-[#E2E8F0]">
                 <div>
                   <h2 className="text-base font-bold m-0 font-headline">
@@ -561,7 +589,6 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
                     Ventanas: 1 mes, 5 días, 1 día y mismo día. Enviar WhatsApp copia el mensaje y abre el chat.
                   </p>
                 </div>
-
               </div>
 
               {alertasVisibles.length === 0 ? (
@@ -571,13 +598,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
                     : 'No hay alertas pendientes en este momento.'}
                 </p>
               ) : (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                    gap: '0.95rem',
-                  }}
-                >
+                <div className="alertas-grid">
                   {alertasVisibles.map((alerta) => {
                     const key = `${alerta.polizaId}-${alerta.tipoRecordatorio}`;
                     const polizaAsociada = polizas.find((p) => p.id === alerta.polizaId);
