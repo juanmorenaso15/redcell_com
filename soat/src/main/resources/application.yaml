@@ -40,6 +40,11 @@ spring:
           starttls:
             enable: true
 
+resend:
+  api-url: ${RESEND_API_URL:https://api.resend.com/emails}
+  api-key: ${RESEND_API_KEY:}
+  from: ${RESEND_FROM:RedCell SOAT <onboarding@resend.dev>}
+
 jwt:
   secret: ${JWT_SECRET}
 

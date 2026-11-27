@@ -100,4 +100,16 @@ export const api = {
     });
     return handleResponse<ConfiguracionTarifa>(res);
   },
+
+  notificarPoliza: async (
+    id: number,
+    payload: { telefono?: string; email?: string; whatsapp?: boolean; gmail?: boolean }
+  ): Promise<{ estado: string; mensaje: string }> => {
+    const res = await fetch(`${API_URL}/api/polizas/${id}/notificar`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse<{ estado: string; mensaje: string }>(res);
+  },
 };

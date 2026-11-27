@@ -23,7 +23,25 @@ interface DetallePolizaModalProps {
   onClose: () => void;
   onEdit: (poliza: Poliza) => void;
   onMarkWhatsappSent?: (polizaId: number, tipo: string) => Promise<void>;
+  onSendEmail?: (poliza: Poliza) => Promise<void>;
 }
+
+const EMOJI = {
+  sparkle: '\u2728',
+  hourglass: '\u23F3',
+  user: '\u{1F464}',
+  id: '\u{1F194}',
+  pointRight: '\u{1F449}',
+  calendar: '\u{1F4C5}',
+  moneyBag: '\u{1F4B0}',
+  gear: '\u2699',
+  dollar: '\u{1F4B5}',
+  redCircle: '\u{1F534}',
+  manOffice: '\u{1F935}',
+  phone: '\u{1F4DE}',
+  pin: '\u{1F4CD}',
+  city: '\u{1F3D9}',
+} as const;
 
 function formatFechaDdMmYyyy(isoOrDate?: string | null): string {
   if (!isoOrDate) return 'Sin fecha';
@@ -69,56 +87,41 @@ function construirMensajeWhatsapp(poliza: Poliza, etiquetaPlazo?: string): strin
   const vehiculoDetalle = construirDescripcionVehiculo(poliza);
   const venceEl = formatFechaDdMmYyyy(poliza.hasta);
 
-  const lineas: string[] = ['✨ *RECORDATORIO DE SOAT* ✨', ''];
+  const lineas: string[] = [
+    `${EMOJI.sparkle} *RECORDATORIO DE SOAT* ${EMOJI.sparkle}`,
+    '',
+  ];
 
   if (etiquetaPlazo && etiquetaPlazo.trim()) {
-    lineas.push(`⏳ *Aviso:* ${etiquetaPlazo.trim()}`, '');
+    lineas.push(`${EMOJI.hourglass} *Aviso:* ${etiquetaPlazo.trim()}`, '');
   }
 
   lineas.push(
     'Muy buenos dias. Le informamos que el SOAT para el vehículo de:',
     '',
-    `👤 *PROPIETARIO:* ${propietario}`,
-    `🆔 *DOCUMENTO:* ${documentoCompleto}`,
-    `👉 *VEHÍCULO:* (${placa}) - ${vehiculoDetalle}`,
+    `${EMOJI.user} *PROPIETARIO:* ${propietario}`,
+    `${EMOJI.id} *DOCUMENTO:* ${documentoCompleto}`,
+    `${EMOJI.pointRight} *VEHÍCULO:* (${placa}) - ${vehiculoDetalle}`,
     '',
-    `🗓️ *VENCE EL:* ${venceEl}`,
-    `💰 *VALOR SOAT:* ${formatMonedaRedcell(valorSoatCalculado)}`,
-    `⚙️ *USO PLATAFORMA:* ${formatMonedaRedcell(usoPlataforma)}`,
-    `💵 *TOTAL A PAGAR:* ${formatMonedaRedcell(totalPagar)}`,
+    `${EMOJI.calendar} *VENCE EL:* ${venceEl}`,
+    `${EMOJI.moneyBag} *VALOR SOAT:* ${formatMonedaRedcell(valorSoatCalculado)}`,
+    `${EMOJI.gear} *USO PLATAFORMA:* ${formatMonedaRedcell(usoPlataforma)}`,
+    `${EMOJI.dollar} *TOTAL A PAGAR:* ${formatMonedaRedcell(totalPagar)}`,
     '',
     '--------------------------------------------',
     '',
-    '🔴 *Más info:* REDCELL.COM',
+    `${EMOJI.redCircle} *Más info:* REDCELL.COM`,
     '',
-    '🤵 *Atendido por:* Yhan Alejandro Moreno Gonzalez',
+    `${EMOJI.manOffice} *Atendido por:* Yhan Alejandro Moreno Gonzalez`,
     '',
-    '📞 *WhatsApp:* 3117034142',
+    `${EMOJI.phone} *WhatsApp:* 3117034142`,
     '',
-    '📍 *Ubicación:* Calle 23 No 15-35 (Por Ventanilla verde)',
+    `${EMOJI.pin} *Ubicación:* Calle 23 No 15-35 (Por Ventanilla verde)`,
     '',
-    '🏙️ Armenia, Quindío'
+    `${EMOJI.city} Armenia, Quindío`
   );
 
   return lineas.join('\n');
-}
-
-function buildWhatsappUrlSafe(telefono: string | null | undefined, mensaje: string): string | null {
-  const baseLink = buildWhatsappLink(telefono, mensaje);
-  if (baseLink) {
-    try {
-      const parsed = new URL(baseLink);
-      parsed.searchParams.set('text', mensaje);
-      return parsed.toString();
-    } catch {
-      return baseLink;
-    }
-  }
-
-  const digits = String(telefono ?? '').replace(/\D/g, '');
-  if (!digits) return null;
-  const normalized = digits.length === 10 && digits.startsWith('3') ? `57${digits}` : digits;
-  return `https://api.whatsapp.com/send?phone=${normalized}&text=${encodeURIComponent(mensaje)}`;
 }
 
 export function DetallePolizaModal({
@@ -127,8 +130,11 @@ export function DetallePolizaModal({
   onClose,
   onEdit,
   onMarkWhatsappSent,
+  onSendEmail,
 }: DetallePolizaModalProps) {
   const [copiado, setCopiado] = useState(false);
+  const [avisoWhatsapp, setAvisoWhatsapp] = useState(false);
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
   const [marcando, setMarcando] = useState<string | null>(null);
 
   if (!poliza) return null;
@@ -137,7 +143,7 @@ export function DetallePolizaModal({
   const alertaActiva = alertasPoliza[0];
 
   const textoWhatsapp = construirMensajeWhatsapp(poliza, alertaActiva?.etiqueta);
-  const waUrl = buildWhatsappUrlSafe(poliza.telefono, textoWhatsapp);
+  const waUrl = buildWhatsappLink(poliza.telefono, textoWhatsapp);
 
   const handleCopiar = async () => {
     try {
@@ -159,13 +165,22 @@ export function DetallePolizaModal({
     }
   };
 
+  const handleEnviarCorreo = async () => {
+    if (!onSendEmail || !poliza.email?.trim()) return;
+    setEnviandoCorreo(true);
+    try {
+      await onSendEmail(poliza);
+    } finally {
+      setEnviandoCorreo(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 md:p-8 z-50">
       <div
         className="bg-white rounded-2xl border border-[#E2E8F0] w-full max-w-5xl p-6 md:p-8 shadow-sm mx-auto"
         style={{ maxHeight: '92vh', overflowY: 'auto' }}
       >
-        {/* Cabecera limpia */}
         <div className="flex items-start justify-between gap-4 pb-5 border-b border-[#E2E8F0]">
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
@@ -200,7 +215,6 @@ export function DetallePolizaModal({
           </button>
         </div>
 
-        {/* Resumen financiero en una sola franja limpia */}
         <div className="grid grid-cols-1 sm:grid-cols-3 border border-[#E2E8F0] rounded-xl overflow-hidden my-6 bg-[#F8FAFC]">
           <div className="p-4 md:p-5 bg-white border-b sm:border-b-0 sm:border-r border-[#E2E8F0]">
             <div className="text-xs font-medium text-[#64748B]">Valor SOAT</div>
@@ -224,9 +238,7 @@ export function DetallePolizaModal({
           </div>
         </div>
 
-        {/* Información organizada en dos columnas limpias */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
-          {/* Columna 1: Vehículo */}
           <div className="border border-[#E2E8F0] rounded-xl p-5 bg-white">
             <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#0F172A] pb-3 mb-3 border-b border-[#E2E8F0]">
               <Car size={15} className="text-[#DC2626]" />
@@ -265,7 +277,6 @@ export function DetallePolizaModal({
             </div>
           </div>
 
-          {/* Columna 2: Propietario, contacto y vigencia */}
           <div className="border border-[#E2E8F0] rounded-xl p-5 bg-white">
             <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#0F172A] pb-3 mb-3 border-b border-[#E2E8F0]">
               <User size={15} className="text-[#0F172A]" />
@@ -320,7 +331,6 @@ export function DetallePolizaModal({
           </div>
         </div>
 
-        {/* Recordatorios de la póliza */}
         <div className="border border-[#E2E8F0] rounded-xl p-4 bg-[#F8FAFC] mb-6">
           <div className="flex items-center justify-between gap-2 mb-2">
             <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase text-[#0F172A]">
@@ -371,7 +381,12 @@ export function DetallePolizaModal({
           )}
         </div>
 
-        {/* Barra de acciones */}
+        {avisoWhatsapp && (
+          <p className="text-xs text-[#16A34A] font-medium mb-3">
+            Mensaje copiado al portapapeles como respaldo por si WhatsApp muestra símbolos en el enlace.
+          </p>
+        )}
+
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[#E2E8F0]">
           <button
             type="button"
@@ -383,11 +398,33 @@ export function DetallePolizaModal({
           </button>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            {onSendEmail && (
+              <button
+                type="button"
+                disabled={!poliza.email?.trim() || enviandoCorreo}
+                onClick={handleEnviarCorreo}
+                title={
+                  poliza.email?.trim()
+                    ? `Enviar recordatorio a ${poliza.email.trim()}`
+                    : 'Sin correo registrado'
+                }
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-[#E2E8F0] bg-white hover:bg-[#F1F5F9] text-xs font-semibold text-[#0F172A] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Mail size={14} className="text-[#0E3B72]" />
+                {enviandoCorreo ? 'Enviando correo...' : 'Enviar correo'}
+              </button>
+            )}
+
             {waUrl ? (
               <a
                 href={waUrl}
                 target="_blank"
                 rel="noreferrer"
+                onClick={() => {
+                  navigator.clipboard?.writeText(textoWhatsapp).catch(() => {});
+                  setAvisoWhatsapp(true);
+                  setTimeout(() => setAvisoWhatsapp(false), 4000);
+                }}
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold"
                 style={{ textDecoration: 'none' }}
               >

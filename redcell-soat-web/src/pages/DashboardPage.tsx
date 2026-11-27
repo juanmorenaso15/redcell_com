@@ -94,6 +94,23 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
     }
   };
 
+  const handleEnviarEmailManual = async (poliza: Poliza) => {
+    if (!poliza.email?.trim()) {
+      setFeedback(`La póliza ${poliza.placa} no tiene correo registrado.`);
+      return;
+    }
+    try {
+      await api.notificarPoliza(poliza.id, {
+        email: poliza.email.trim(),
+        gmail: true,
+        whatsapp: false,
+      });
+      setFeedback(`Correo encolado para ${poliza.email.trim()} (Placa ${poliza.placa}).`);
+    } catch (err: unknown) {
+      setFeedback(err instanceof Error ? err.message : 'Error al encolar correo');
+    }
+  };
+
   const aseguradoras = useMemo(() => {
     const set = new Set<string>();
     polizas.forEach((p) => {
@@ -337,6 +354,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
         onClose={() => setViewingPoliza(null)}
         onEdit={(p) => setEditingPoliza(p)}
         onMarkWhatsappSent={handleMarkWhatsappSent}
+        onSendEmail={handleEnviarEmailManual}
       />
 
       <EditarPolizaModal
