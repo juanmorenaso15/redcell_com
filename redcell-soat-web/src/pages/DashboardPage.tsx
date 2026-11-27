@@ -365,6 +365,35 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
             ? 'Revisa y gestiona las alertas de vencimiento programadas.'
             : 'Consulta, carga PDFs, edita pólizas y gestiona uso de plataforma y recordatorios.';
 
+  const botonUsuarioConfig = (
+    <button
+      type="button"
+      onClick={() => setActiveSection('configuracion')}
+      title="Abrir configuración de perfil"
+      className={
+        activeSection === 'configuracion'
+          ? 'flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-[#F1F5F9] border border-[#0F172A] shadow-sm shrink-0 cursor-pointer text-left w-full sm:w-auto'
+          : 'flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] shadow-sm shrink-0 cursor-pointer text-left w-full sm:w-auto'
+      }
+    >
+      <img
+        src="/logo-redcell.png"
+        alt={usuario.nombre}
+        className="h-8 w-8 rounded-full object-contain bg-[#F8FAFC] p-1 border border-[#E2E8F0] shrink-0"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).style.display = 'none';
+        }}
+      />
+      <div className="leading-tight whitespace-nowrap min-w-0">
+        <div className="text-xs font-bold text-[#0F172A] truncate">{usuario.nombre}</div>
+        <div className="text-[11px] text-[#64748B] truncate">
+          {usuario.rol} ·{' '}
+          <span className="font-medium text-[#0F172A]">{usuario.username}</span>
+        </div>
+      </div>
+    </button>
+  );
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#F8FAFC] text-[#0F172A] w-full">
       {/* Barra superior móvil (< md) */}
@@ -386,14 +415,9 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
               (e.currentTarget as HTMLImageElement).style.display = 'none';
             }}
           />
-          <div className="min-w-0">
-            <div className="font-bold text-sm leading-tight font-headline truncate">
-              RedCell SOAT
-            </div>
-            <div className="text-[11px] text-[#64748B] truncate">
-              {usuario.nombre} · {usuario.username}
-            </div>
-          </div>
+          <span className="font-bold text-sm leading-tight font-headline truncate">
+            RedCell SOAT
+          </span>
         </div>
 
         <button
@@ -426,7 +450,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
         className="flex-1 min-w-0 max-w-none w-full"
       >
         <div className="w-full px-0 sm:px-2 lg:px-4 space-y-6">
-          <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pt-1">
+          <header className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4 pt-1">
             <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] m-0 font-headline">
                 {tituloHeader}
@@ -434,7 +458,10 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
               <p className="text-xs sm:text-sm text-[#64748B] mt-1.5 mb-0">{subtituloHeader}</p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5">
+            {/* En móvil: tarjeta de usuario arriba de los botones */}
+            <div className="block sm:hidden">{botonUsuarioConfig}</div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
@@ -498,28 +525,8 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setActiveSection('configuracion')}
-                title="Abrir configuración de perfil"
-                className="hidden sm:flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] shadow-sm shrink-0 cursor-pointer text-left"
-              >
-                <img
-                  src="/logo-redcell.png"
-                  alt={usuario.nombre}
-                  className="h-8 w-8 rounded-full object-contain bg-[#F8FAFC] p-1 border border-[#E2E8F0] shrink-0"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-                <div className="leading-tight whitespace-nowrap">
-                  <div className="text-xs font-bold text-[#0F172A]">{usuario.nombre}</div>
-                  <div className="text-[11px] text-[#64748B]">
-                    {usuario.rol} ·{' '}
-                    <span className="font-medium text-[#0F172A]">{usuario.username}</span>
-                  </div>
-                </div>
-              </button>
+              {/* En tablet y escritorio: a la derecha de los botones */}
+              <div className="hidden sm:block">{botonUsuarioConfig}</div>
             </div>
           </header>
 

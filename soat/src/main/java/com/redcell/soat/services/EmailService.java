@@ -52,7 +52,7 @@ public class EmailService {
         String htmlContent = String.format(
                 """
                         <!DOCTYPE html>
-                        <html>
+                        <html lang="es">
                         <head>
                             <meta charset="UTF-8">
                             <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -61,135 +61,162 @@ public class EmailService {
                                 body {
                                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                                     line-height: 1.6;
-                                    color: #2c3e50;
+                                    color: #0F172A;
                                     margin: 0;
-                                    padding: 0;
-                                    background: linear-gradient(135deg, #e0eafc 0%%, #cfdef3 100%%);
+                                    padding: 28px 16px;
+                                    background-color: #F8FAFC;
                                 }
                                 .container {
                                     max-width: 550px;
-                                    margin: 30px auto;
-                                    padding: 0;
-                                    background-color: #ffffff;
-                                    border-radius: 20px;
-                                    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+                                    margin: 0 auto;
+                                    background-color: #FFFFFF;
+                                    border-radius: 16px;
+                                    border: 1px solid #E2E8F0;
+                                    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
                                     overflow: hidden;
                                 }
                                 .header {
-                                    background: linear-gradient(135deg, #0b315c 0%%, #1e5799 100%%);
-                                    color: white;
-                                    padding: 35px 20px;
+                                    background: linear-gradient(135deg, #DC2626 0%%, #B91C1C 62%%, #16A34A 100%%);
+                                    color: #FFFFFF;
+                                    padding: 32px 24px;
                                     text-align: center;
+                                }
+                                .badge {
+                                    display: inline-block;
+                                    background-color: #FFFFFF;
+                                    color: #DC2626;
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    letter-spacing: 1.2px;
+                                    text-transform: uppercase;
+                                    padding: 4px 12px;
+                                    border-radius: 999px;
+                                    margin-bottom: 12px;
                                 }
                                 .header h1 {
                                     margin: 0;
-                                    font-size: 28px;
-                                    font-weight: 600;
-                                    letter-spacing: 1px;
+                                    font-size: 26px;
+                                    font-weight: 700;
+                                    letter-spacing: 0.5px;
+                                    color: #FFFFFF;
                                 }
                                 .header p {
-                                    margin: 10px 0 0;
-                                    opacity: 0.9;
+                                    margin: 8px 0 0;
+                                    color: #FFFFFF;
+                                    opacity: 0.95;
                                     font-size: 14px;
                                 }
                                 .content {
-                                    padding: 40px 35px;
-                                    background-color: #ffffff;
+                                    padding: 36px 32px;
+                                    background-color: #FFFFFF;
                                 }
                                 .greeting {
-                                    font-size: 20px;
-                                    color: #2c3e50;
-                                    margin-bottom: 20px;
-                                    font-weight: 500;
+                                    font-size: 18px;
+                                    color: #0F172A;
+                                    margin-bottom: 16px;
+                                    font-weight: 600;
                                 }
                                 .message {
-                                    color: #5d6d7e;
-                                    margin-bottom: 25px;
+                                    color: #475569;
+                                    margin-bottom: 24px;
                                     font-size: 15px;
-                                    line-height: 1.5;
+                                    line-height: 1.55;
                                 }
                                 .code-container {
-                                    background: #f0f4f8;
-                                    padding: 30px;
-                                    border-radius: 16px;
+                                    background: #F8FAFC;
+                                    padding: 26px 20px;
+                                    border-radius: 14px;
                                     text-align: center;
-                                    margin: 30px 0;
-                                    border: 1px solid #dce6f0;
+                                    margin: 26px 0;
+                                    border: 1px solid #E2E8F0;
+                                    border-top: 4px solid #16A34A;
                                 }
                                 .code-label {
                                     font-size: 12px;
-                                    color: #1e5799;
+                                    color: #15803D;
                                     text-transform: uppercase;
-                                    letter-spacing: 3px;
-                                    margin-bottom: 15px;
-                                    font-weight: 600;
+                                    letter-spacing: 2.5px;
+                                    margin-bottom: 14px;
+                                    font-weight: 700;
                                 }
                                 .code {
-                                    font-size: 48px;
-                                    font-weight: 700;
-                                    color: #0b315c;
+                                    font-size: 42px;
+                                    font-weight: 800;
+                                    color: #DC2626;
                                     letter-spacing: 10px;
-                                    background: white;
+                                    background: #FFFFFF;
                                     display: inline-block;
-                                    padding: 15px 30px;
+                                    padding: 14px 26px;
                                     border-radius: 12px;
-                                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-                                    border: 1px solid #dce6f0;
+                                    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+                                    border: 1px solid #E2E8F0;
                                 }
                                 .expiry {
                                     font-size: 12px;
-                                    color: #1e5799;
-                                    margin-top: 15px;
+                                    color: #475569;
+                                    margin-top: 14px;
+                                }
+                                .expiry strong {
+                                    color: #15803D;
                                 }
                                 .warning-box {
-                                    background-color: #f8f9fc;
-                                    border-left: 3px solid #1e5799;
-                                    padding: 15px 20px;
-                                    margin: 25px 0;
+                                    background-color: #FEF2F2;
+                                    border-left: 4px solid #DC2626;
+                                    padding: 14px 18px;
+                                    margin: 22px 0 0;
                                     border-radius: 8px;
                                 }
                                 .warning-text {
-                                    color: #7a8b9e;
-                                    font-size: 12px;
+                                    color: #334155;
+                                    font-size: 12.5px;
                                     margin: 0;
-                                    line-height: 1.4;
+                                    line-height: 1.45;
+                                }
+                                .warning-text strong {
+                                    color: #DC2626;
                                 }
                                 .footer {
-                                    background-color: #f8f9fc;
-                                    padding: 20px 30px;
+                                    background-color: #F8FAFC;
+                                    padding: 20px 28px;
                                     text-align: center;
-                                    border-top: 1px solid #e8edf2;
+                                    border-top: 1px solid #E2E8F0;
                                 }
                                 .footer-text {
-                                    color: #9aabbb;
-                                    font-size: 11px;
-                                    margin: 5px 0;
+                                    color: #64748B;
+                                    font-size: 11.5px;
+                                    margin: 4px 0;
                                 }
-                                .highlight {
-                                    color: #1e5799;
-                                    text-decoration: none;
+                                .highlight-red {
+                                    color: #DC2626;
+                                    font-weight: 700;
+                                }
+                                .highlight-green {
+                                    color: #16A34A;
+                                    font-weight: 700;
                                 }
                             </style>
                         </head>
                         <body>
                             <div class="container">
                                 <div class="header">
-                                    <h1><strong>RedCell SOAT</strong></h1>
+                                    <div class="badge">Seguridad de cuenta</div>
+                                    <h1>RedCell SOAT</h1>
                                     <p>Gestión inteligente de seguros</p>
                                 </div>
 
                                 <div class="content">
                                     <div class="greeting">
-                                        Estimado(a) <strong>%s</strong>,
+                                        Hola, <strong>%s</strong>
                                     </div>
 
                                     <div class="message">
-                                        Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <strong>RedCell SOAT</strong>.
-                                        Para garantizar la seguridad de tu cuenta, utiliza el siguiente código de verificación:
+                                        Recibimos una solicitud para restablecer la contraseña de tu cuenta en
+                                        <span class="highlight-red">RedCell</span> <span class="highlight-green">SOAT</span>.
+                                        Ingresa el siguiente código de verificación para continuar:
                                     </div>
 
                                     <div class="code-container">
-                                        <div class="code-label">CÓDIGO DE VERIFICACIÓN</div>
+                                        <div class="code-label">Código de verificación</div>
                                         <div class="code">%s</div>
                                         <div class="expiry">
                                             Válido por <strong>15 minutos</strong>
@@ -198,22 +225,21 @@ public class EmailService {
 
                                     <div class="warning-box">
                                         <div class="warning-text">
-                                            <strong>ℹ️ Importante:</strong> Si no solicitaste este cambio, por favor ignora este mensaje.
-                                            Tu contraseña permanecerá segura y sin cambios.
+                                            <strong>Importante:</strong> Si no solicitaste este cambio, ignora este correo.
+                                            Tu contraseña actual seguirá protegida sin modificaciones.
                                         </div>
                                     </div>
-
                                 </div>
 
                                 <div class="footer">
                                     <div class="footer-text">
-                                        © 2026 RedCell SOAT - Todos los derechos reservados
+                                        © 2026 <span class="highlight-red">RedCell</span> <span class="highlight-green">SOAT</span> · Todos los derechos reservados
                                     </div>
                                     <div class="footer-text">
-                                        Este es un mensaje automático, por favor no responder a este correo
+                                        Mensaje automático del sistema · Por favor no respondas a este correo
                                     </div>
                                     <div class="footer-text">
-                                        <span class="highlight">RedCell SOAT</span> - Armenia, Quindío
+                                        Armenia, Quindío
                                     </div>
                                 </div>
                             </div>
@@ -271,8 +297,8 @@ public class EmailService {
                             <style>
                                 body {
                                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-                                    background-color: #f4f6f9;
-                                    color: #1e293b;
+                                    background-color: #F8FAFC;
+                                    color: #0F172A;
                                     margin: 0;
                                     padding: 28px 16px;
                                     line-height: 1.55;
@@ -280,35 +306,39 @@ public class EmailService {
                                 .wrapper {
                                     max-width: 580px;
                                     margin: 0 auto;
-                                    background-color: #ffffff;
-                                    border: 1px solid #e2e8f0;
-                                    border-radius: 10px;
+                                    background-color: #FFFFFF;
+                                    border: 1px solid #E2E8F0;
+                                    border-radius: 14px;
                                     overflow: hidden;
+                                    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
                                 }
                                 .header {
-                                    background-color: #0e3b72;
-                                    color: #ffffff;
+                                    background: linear-gradient(135deg, #DC2626 0%%, #B91C1C 62%%, #16A34A 100%%);
+                                    color: #FFFFFF;
                                     padding: 26px 32px;
-                                    border-bottom: 3px solid #0f1c3f;
+                                    border-bottom: 3px solid #15803D;
                                 }
                                 .header-brand {
-                                    font-size: 20px;
-                                    font-weight: 700;
+                                    font-size: 21px;
+                                    font-weight: 800;
                                     letter-spacing: 0.4px;
                                     margin: 0;
+                                    color: #FFFFFF;
                                 }
                                 .header-sub {
                                     font-size: 13px;
-                                    color: #cbd5e1;
+                                    color: #FFFFFF;
+                                    opacity: 0.95;
                                     margin: 4px 0 0;
                                 }
                                 .content {
                                     padding: 28px 32px;
+                                    background-color: #FFFFFF;
                                 }
                                 .greeting {
-                                    font-size: 15px;
-                                    margin: 0 0 14px;
-                                    color: #0f1c3f;
+                                    font-size: 16px;
+                                    margin: 0 0 12px;
+                                    color: #0F172A;
                                 }
                                 .lead {
                                     font-size: 14px;
@@ -319,31 +349,34 @@ public class EmailService {
                                     width: 100%%;
                                     border-collapse: collapse;
                                     margin-bottom: 22px;
-                                    border: 1px solid #e2e8f0;
-                                    border-radius: 8px;
+                                    border: 1px solid #E2E8F0;
+                                    border-radius: 10px;
+                                    overflow: hidden;
                                 }
                                 .summary-table td {
                                     padding: 10px 14px;
                                     font-size: 13.5px;
-                                    border-bottom: 1px solid #edf2f7;
+                                    border-bottom: 1px solid #E2E8F0;
                                 }
                                 .summary-table tr:last-child td {
                                     border-bottom: none;
                                 }
                                 .label {
-                                    color: #64748b;
+                                    color: #64748B;
                                     font-weight: 500;
                                     width: 38%%;
+                                    background-color: #F8FAFC;
                                 }
                                 .value {
-                                    color: #0f1c3f;
+                                    color: #0F172A;
                                     font-weight: 600;
                                     text-align: right;
                                 }
                                 .amounts-box {
-                                    background-color: #f8fafc;
-                                    border: 1px solid #e2e8f0;
-                                    border-radius: 8px;
+                                    background-color: #F8FAFC;
+                                    border: 1px solid #E2E8F0;
+                                    border-left: 4px solid #16A34A;
+                                    border-radius: 10px;
                                     padding: 14px 18px;
                                     margin-bottom: 22px;
                                 }
@@ -355,12 +388,12 @@ public class EmailService {
                                     padding: 5px 0;
                                 }
                                 .total-row {
-                                    border-top: 1px solid #cbd5e1;
+                                    border-top: 1px solid #E2E8F0;
                                     margin-top: 8px;
                                     padding-top: 10px;
                                     font-size: 15px;
                                     font-weight: 700;
-                                    color: #0e3b72;
+                                    color: #DC2626;
                                 }
                                 .contact-note {
                                     font-size: 13px;
@@ -368,14 +401,22 @@ public class EmailService {
                                     margin: 0;
                                 }
                                 .footer {
-                                    background-color: #f8fafc;
-                                    border-top: 1px solid #e2e8f0;
+                                    background-color: #F8FAFC;
+                                    border-top: 1px solid #E2E8F0;
                                     padding: 18px 32px;
                                     font-size: 12px;
-                                    color: #64748b;
+                                    color: #64748B;
                                 }
                                 .footer p {
                                     margin: 3px 0;
+                                }
+                                .brand-red {
+                                    color: #DC2626;
+                                    font-weight: 700;
+                                }
+                                .brand-green {
+                                    color: #16A34A;
+                                    font-weight: 700;
                                 }
                             </style>
                         </head>
@@ -419,7 +460,7 @@ public class EmailService {
                                         </div>
                                         <div class="amount-row">
                                             <span>Uso de plataforma: </span>
-                                            <strong> $%s</strong>
+                                            <strong style="color: #15803D;"> $%s</strong>
                                         </div>
                                         <div class="amount-row total-row">
                                             <span>Total a pagar: </span>
@@ -432,7 +473,7 @@ public class EmailService {
                                     </p>
                                 </div>
                                 <div class="footer">
-                                    <p>RedCell SOAT · REDCELL.COM</p>
+                                    <p><span class="brand-red">RedCell</span> <span class="brand-green">SOAT</span> · REDCELL.COM</p>
                                     <p>Mensaje informativo generado automáticamente.</p>
                                 </div>
                             </div>
