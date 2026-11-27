@@ -1,6 +1,8 @@
 package com.redcell.soat.services;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
+
 import org.springframework.stereotype.Service;
 
 import com.redcell.soat.entity.Poliza;
@@ -11,7 +13,7 @@ public class CalculadoraSoatService {
     private static final BigDecimal TASA_RUNT = new BigDecimal("2400");
 
     public BigDecimal calcularTotalPagar(Poliza poliza) {
-        String tipo = poliza.getTipoVehiculo() != null ? poliza.getTipoVehiculo().toUpperCase() : "";
+        String tipo = normalizarTipo(poliza.getTipoVehiculo());
         int cc = poliza.getCilindraje() != null ? poliza.getCilindraje() : 0;
         int edad = poliza.getEdadVehiculo() != null ? poliza.getEdadVehiculo() : 0;
         BigDecimal toneladas = poliza.getCapacidadToneladas() != null ? poliza.getCapacidadToneladas() : BigDecimal.ZERO;
@@ -20,7 +22,12 @@ public class CalculadoraSoatService {
         BigDecimal fosyga = BigDecimal.ZERO;
 
         // 1. MOTOS (100 - 150)
-        if (tipo.contains("MOTO") || tipo.contains("CICLOMOTOR")) {
+        // 100: Ciclomotor -> Prima 80.100 | Ley 100/93 41.600 | RUNT 2.400 = 124.100
+        // 110: Menos de 100 c.c. -> Prima 167.000 | Ley 100/93 86.800 | RUNT 2.400 = 256.200
+        // 120: De 100 a 200 c.c. -> Prima 224.300 | Ley 100/93 116.600 | RUNT 2.400 = 343.300
+        // 130: Más de 200 c.c. -> Prima 499.400 | Ley 100/93 259.600 | RUNT 2.400 = 761.400
+        // 140 / 150: Motocarros, tricimoto, cuadriciclos / Motocarro 5 pasajeros -> Prima 253.000 | Ley 100/93 131.500 | RUNT 2.400 = 386.900
+        if (esMotoOTriciclo(tipo)) {
             if (tipo.contains("CICLOMOTOR")) {
                 prima = new BigDecimal("80100");
                 fosyga = new BigDecimal("41600");
@@ -66,6 +73,7 @@ public class CalculadoraSoatService {
                 }
             }
         }
+        // 3. CARGA O MIXTO (310 - 330)
         else if (tipo.contains("CARGA") || tipo.contains("MIXTO")) {
             if (toneladas.compareTo(new BigDecimal("5")) < 0) {
                 prima = new BigDecimal("582900");
@@ -78,6 +86,7 @@ public class CalculadoraSoatService {
                 fosyga = new BigDecimal("554000");
             }
         }
+        // 4. OFICIALES ESPECIALES (410 - 430)
         else if (tipo.contains("OFICIAL")) {
             if (cc < 1500) {
                 prima = new BigDecimal("656000");
@@ -90,7 +99,10 @@ public class CalculadoraSoatService {
                 fosyga = new BigDecimal("515900");
             }
         }
-        else if (tipo.contains("AUTOS FAMILIARES") || tipo.contains("AUTOMOVIL") || tipo.contains("AUTOMÓVIL")) {
+        // 5. AUTOS FAMILIARES (511 - 532)
+        else if (tipo.contains("AUTOS FAMILIARES")
+                || tipo.contains("AUTOMOVILES FAMILIARES")
+                || tipo.contains("AUTOMOVIL")) {
             if (cc < 1500) {
                 if (edad <= 9) {
                     prima = new BigDecimal("292700");
@@ -117,7 +129,12 @@ public class CalculadoraSoatService {
                 }
             }
         }
-        else if (tipo.contains("SEIS") || tipo.contains("PASAJEROS")) {
+        // 6. VEHÍCULOS PARA SEIS O MÁS PASAJEROS (611 - 622)
+        // Ejemplos en pólizas: "VEHICULO PARA 6 O MAS", "VEHICULOS PARA SEIS O MAS PASAJEROS"
+        else if (tipo.contains("6 O MAS")
+                || tipo.contains("SEIS O MAS")
+                || tipo.contains("SEIS")
+                || tipo.contains("PASAJEROS")) {
             if (cc < 2500) {
                 if (edad <= 9) {
                     prima = new BigDecimal("523000");
@@ -136,6 +153,7 @@ public class CalculadoraSoatService {
                 }
             }
         }
+        // 7. AUTOS DE NEGOCIOS Y TAXIS (711 - 732)
         else if (tipo.contains("NEGOCIO") || tipo.contains("TAXI")) {
             if (cc < 1500) {
                 if (edad <= 9) {
@@ -163,10 +181,14 @@ public class CalculadoraSoatService {
                 }
             }
         }
+        // 8. BUSES Y BUSETAS DE SERVICIO PÚBLICO URBANO (810)
         else if (tipo.contains("BUS") || tipo.contains("BUSETA")) {
             prima = new BigDecimal("441400");
             fosyga = new BigDecimal("229500");
         }
+        // 9. SERVICIO PÚBLICO INTERMUNICIPAL (910 - 920)
+        // Nota: el tarifario divide por cantidad de pasajeros (< 10 vs >= 10).
+        // Si no tienes campo de pasajeros aún, usa un valor de referencia en cc o ajusta cuando agregues el campo.
         else if (tipo.contains("INTERMUNICIPAL")) {
             if (cc < 10) {
                 prima = new BigDecimal("436300");
@@ -184,5 +206,20 @@ public class CalculadoraSoatService {
         BigDecimal totalSoat = prima.add(fosyga).add(TASA_RUNT);
         poliza.setPrecioSoat(totalSoat);
         return totalSoat;
+    }
+
+    private boolean esMotoOTriciclo(String tipo) {
+        return tipo.contains("MOTO")
+                || tipo.contains("CICLOMOTOR")
+                || tipo.contains("MOTOCARRO")
+                || tipo.contains("TRICIMOTO")
+                || tipo.contains("CUADRICICLO");
+    }
+
+    private String normalizarTipo(String valor) {
+        if (valor == null) return "";
+        String sinTildes = Normalizer.normalize(valor.toUpperCase().trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+        return sinTildes.replaceAll("\\s+", " ");
     }
 }

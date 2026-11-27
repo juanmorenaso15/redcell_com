@@ -6,6 +6,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -40,6 +44,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class PolizaController {
 
+    private static final int DEFAULT_PAGE_SIZE = 10;
+
     private final PdfExtractorService pdfExtractorService;
     private final PolizaService polizaService;
     private final NotificacionSoatService notificacionSoatService;
@@ -66,13 +72,17 @@ public class PolizaController {
 
             Poliza poliza = pdfExtractorService.extraerDatosPdf(file);
 
-            if (poliza.getPlaca() == null) {
+            if (poliza.getPlaca() == null || poliza.getPlaca().isBlank()) {
                 return ResponseEntity.badRequest().body(new ApiResponse("No se pudo extraer la placa del PDF. Verifica el formato."));
             }
 
-            polizaService.guardarOActualizarPoliza(poliza);
+            Poliza guardada = polizaService.guardarOActualizarPoliza(poliza);
 
-            return ResponseEntity.ok(new ApiResponse("Póliza guardada. Placa: " + poliza.getPlaca() + ". Las pólizas anteriores fueron desactivadas si existían."));
+            String avisoTarifa = (guardada.getPrecioSoat() == null)
+                    ? " (Revisa los datos del vehículo para completar el cálculo de tarifa)."
+                    : ". Las pólizas anteriores fueron desactivadas si existían.";
+
+            return ResponseEntity.ok(new ApiResponse("Póliza guardada. Placa: " + guardada.getPlaca() + avisoTarifa));
 
         } catch (Exception e) {
             log.error("Error al procesar el PDF", e);
@@ -80,9 +90,42 @@ public class PolizaController {
         }
     }
 
-    @GetMapping
-    public ResponseEntity<List<Poliza>> listarTodas() {
-        return ResponseEntity.ok(polizaService.obtenerTodas());
+    /**
+     * Listado paginado (10 por defecto) y filtrado desde el backend.
+     * Ejemplo: GET /api/polizas?page=0&size=10&q=ABC&aseguradora=PREVISORA&tipoVehiculo=MOTO&vigencia=VIGENTE
+     */
+@GetMapping
+    public ResponseEntity<Page<Poliza>> listarPaginado(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String aseguradora,
+            @RequestParam(required = false) String tipoVehiculo,
+            @RequestParam(required = false) String vigencia,
+            @RequestParam(defaultValue = "true") boolean soloActivas,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
+
+        int safePage = Math.max(page, 0);
+        int safeSize = (size <= 0) ? DEFAULT_PAGE_SIZE : Math.min(size, 100);
+
+        Sort.Direction direction = "asc".equalsIgnoreCase(sortDir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String propOrden = validarCampoOrden(sortBy);
+        Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by(direction, propOrden));
+
+        Page<Poliza> resultado = polizaService.buscarPaginado(
+                q, aseguradora, tipoVehiculo, vigencia, soloActivas, pageable
+        );
+
+        return ResponseEntity.ok(resultado);
+    }
+
+    private String validarCampoOrden(String sortBy) {
+        if (sortBy == null) return "id";
+        return switch (sortBy) {
+            case "id", "placa", "propietario", "aseguradora", "tipoVehiculo", "desde", "hasta", "precioSoat", "totalPagar" -> sortBy;
+            default -> "id";
+        };
     }
 
     @GetMapping("/{id}")

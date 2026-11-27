@@ -1,24 +1,34 @@
 package com.redcell.soat.services;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.redcell.soat.dto.PolizaUpdateDTO;
 import com.redcell.soat.entity.ConfiguracionTarifa;
 import com.redcell.soat.entity.Poliza;
 import com.redcell.soat.repository.ConfiguracionTarifaRepository;
 import com.redcell.soat.repository.PolizaRepository;
 
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PolizaService {
+
+    private static final ZoneId ZONA_COLOMBIA = ZoneId.of("America/Bogota");
 
     private final PolizaRepository polizaRepository;
     private final CalculadoraSoatService calculadoraSoatService;
@@ -28,6 +38,87 @@ public class PolizaService {
         return polizaRepository.findAll().stream()
                 .filter(p -> Boolean.TRUE.equals(p.getActivo()))
                 .toList();
+    }
+
+    public Page<Poliza> buscarPaginado(
+            String q,
+            String aseguradora,
+            String tipoVehiculo,
+            String vigencia,
+            boolean soloActivas,
+            Pageable pageable) {
+
+        Specification<Poliza> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (soloActivas) {
+                predicates.add(cb.isTrue(root.get("activo")));
+            }
+
+            if (q != null && !q.trim().isEmpty()) {
+                String patron = "%" + q.trim().toLowerCase(Locale.ROOT) + "%";
+                Predicate porPlaca = cb.like(cb.lower(cb.coalesce(root.get("placa"), "")), patron);
+                Predicate porPropietario = cb.like(cb.lower(cb.coalesce(root.get("propietario"), "")), patron);
+                Predicate porMarcaLinea = cb.like(cb.lower(cb.coalesce(root.get("marcaLinea"), "")), patron);
+                Predicate porAseguradora = cb.like(cb.lower(cb.coalesce(root.get("aseguradora"), "")), patron);
+                Predicate porDocumento = cb.like(
+                        cb.lower(root.get("documento").as(String.class)),
+                        patron
+                );
+                predicates.add(cb.or(porPlaca, porPropietario, porMarcaLinea, porAseguradora, porDocumento));
+            }
+
+            if (aseguradora != null && !aseguradora.trim().isEmpty()
+                    && !"TODAS".equalsIgnoreCase(aseguradora.trim())) {
+                String patronAseg = "%" + aseguradora.trim().toLowerCase(Locale.ROOT) + "%";
+                predicates.add(cb.like(cb.lower(cb.coalesce(root.get("aseguradora"), "")), patronAseg));
+            }
+
+            if (tipoVehiculo != null && !tipoVehiculo.trim().isEmpty()
+                    && !"TODOS".equalsIgnoreCase(tipoVehiculo.trim())) {
+                String patronTipo = "%" + tipoVehiculo.trim().toLowerCase(Locale.ROOT) + "%";
+                predicates.add(cb.like(cb.lower(cb.coalesce(root.get("tipoVehiculo"), "")), patronTipo));
+            }
+
+            if (vigencia != null && !vigencia.trim().isEmpty()
+                    && !"TODAS".equalsIgnoreCase(vigencia.trim())) {
+                LocalDate hoy = LocalDate.now(ZONA_COLOMBIA);
+                String estado = vigencia.trim().toUpperCase(Locale.ROOT);
+
+                switch (estado) {
+                    case "VIGENTE" -> {
+                        Predicate noVencida = cb.and(
+                                cb.isNotNull(root.get("hasta")),
+                                cb.greaterThanOrEqualTo(root.get("hasta"), hoy)
+                        );
+                        Predicate yaInicio = cb.or(
+                                cb.isNull(root.get("desde")),
+                                cb.lessThanOrEqualTo(root.get("desde"), hoy)
+                        );
+                        predicates.add(cb.and(noVencida, yaInicio));
+                    }
+                    case "POR_VENCER" -> {
+                        LocalDate limite = hoy.plusDays(30);
+                        predicates.add(cb.and(
+                                cb.isNotNull(root.get("hasta")),
+                                cb.greaterThanOrEqualTo(root.get("hasta"), hoy),
+                                cb.lessThanOrEqualTo(root.get("hasta"), limite)
+                        ));
+                    }
+                    case "VENCIDA" -> predicates.add(cb.and(
+                            cb.isNotNull(root.get("hasta")),
+                            cb.lessThan(root.get("hasta"), hoy)
+                    ));
+                    default -> {
+                        // Si llega un valor no reconocido, no aplica filtro adicional de vigencia
+                    }
+                }
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return polizaRepository.findAll(spec, pageable);
     }
 
     public Poliza obtenerPorId(Long id) {
@@ -122,7 +213,6 @@ public class PolizaService {
         return polizaRepository.save(poliza);
     }
 
-    // ELIMINAR
     @Transactional
     public void eliminar(Long id) {
         Poliza poliza = obtenerPorId(id);
