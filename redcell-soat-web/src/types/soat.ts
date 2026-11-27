@@ -73,3 +73,10 @@ export interface ActualizarPerfilDTO {
   username: string;
   email: string;
 }
+
+export interface RegistroUsuarioDTO {
+  email: string;
+  username: string;
+  password: string;
+  rol: string;
+}

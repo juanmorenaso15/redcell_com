@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Bell, CheckCircle2, Coins, ExternalLink, LogOut, Plus, ShieldCheck, X } from 'lucide-react';
+import {
+  Bell,
+  CheckCircle2,
+  Coins,
+  ExternalLink,
+  LogOut,
+  Plus,
+  ShieldCheck,
+  UserPlus,
+  X,
+} from 'lucide-react';
 import { ConfiguracionSection } from '../components/configuracion/ConfiguracionSection';
 import { Sidebar, type SidebarSection } from '../components/layout/Sidebar';
 import {
@@ -11,6 +21,7 @@ import { SubirPdfModal } from '../components/modals/SubirPdfModal';
 import { KpiCards } from '../components/polizas/KpiCards';
 import { PolizasTable, type EstadoVigenciaFilter } from '../components/polizas/PolizasTable';
 import { UsoPlataformaSection } from '../components/tarifas/UsoPlataformaSection';
+import { UsuariosSection } from '../components/usuarios/UsuariosSection';
 import { api } from '../services/api';
 import type {
   ActualizarPerfilDTO,
@@ -303,6 +314,28 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
     [polizas]
   );
 
+  const tituloHeader =
+    activeSection === 'configuracion'
+      ? 'Configuración'
+      : activeSection === 'usuarios'
+        ? 'Usuarios y equipo'
+        : activeSection === 'tarifas'
+          ? 'Uso de plataforma'
+          : activeSection === 'alertas'
+            ? 'Alertas y recordatorios'
+            : 'Base de datos SOAT';
+
+  const subtituloHeader =
+    activeSection === 'configuracion'
+      ? 'Gestiona tu perfil de usuario y contraseña.'
+      : activeSection === 'usuarios'
+        ? 'Registra nuevos administradores u operadores para acceder a RedCell SOAT.'
+        : activeSection === 'tarifas'
+          ? 'Administra las tarifas de uso de plataforma y aplícalas a las pólizas.'
+          : activeSection === 'alertas'
+            ? 'Revisa y gestiona las alertas de vencimiento programadas.'
+            : 'Consulta, carga PDFs, edita pólizas y gestiona uso de plataforma y recordatorios.';
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#F8FAFC] text-[#0F172A] w-full">
       <div className="flex md:hidden items-center justify-between gap-3 px-4 py-3 bg-white border-b border-[#E2E8F0]">
@@ -346,13 +379,9 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
         <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] m-0 font-headline">
-              {activeSection === 'configuracion' ? 'Configuración' : 'Base de datos SOAT'}
+              {tituloHeader}
             </h1>
-            <p className="text-xs sm:text-sm text-[#64748B] mt-1 mb-0">
-              {activeSection === 'configuracion'
-                ? 'Gestiona tu perfil de usuario y parámetros del sistema.'
-                : 'Consulta, carga PDFs, edita pólizas y gestiona uso de plataforma y recordatorios.'}
-            </p>
+            <p className="text-xs sm:text-sm text-[#64748B] mt-1 mb-0">{subtituloHeader}</p>
           </div>
 
           <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 shrink-0">
@@ -394,6 +423,19 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
               >
                 <Coins size={16} className="shrink-0" />
                 Uso de plataforma
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveSection('usuarios')}
+                className={
+                  activeSection === 'usuarios'
+                    ? 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#0F172A] bg-[#0F172A] text-white'
+                    : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap cursor-pointer border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F1F5F9]'
+                }
+              >
+                <UserPlus size={16} className="shrink-0" />
+                Usuarios
               </button>
 
               <button
@@ -475,6 +517,8 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
             onDeleteTarifa={handleDeleteTarifa}
             onApplyTarifaToPolizas={handleApplyTarifaToPolizas}
           />
+        ) : activeSection === 'usuarios' ? (
+          <UsuariosSection onIrAConfiguracion={() => setActiveSection('configuracion')} />
         ) : activeSection === 'configuracion' ? (
           <ConfiguracionSection
             perfil={perfil}

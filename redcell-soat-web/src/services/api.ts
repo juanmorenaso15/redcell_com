@@ -5,6 +5,7 @@ import type {
   PerfilUsuario,
   Poliza,
   PolizaUpdateDTO,
+  RegistroUsuarioDTO,
 } from '../types/soat';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://redcell-soat-api.onrender.com';
@@ -182,4 +183,13 @@ export const api = {
     });
     return handleResponse<{ estado: string; mensaje: string }>(res);
   },
+
+  registrarUsuario: async (dto: RegistroUsuarioDTO): Promise<{ message: string }> => {
+    const res = await fetch(`${API_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify(dto),
+    });
+    return handleResponse<{ message: string }>(res);
+  }
 };

@@ -1,6 +1,6 @@
-import { Bell, Coins, LogOut, Settings, ShieldCheck } from 'lucide-react';
+import { Bell, Coins, LogOut, Settings, ShieldCheck, UserPlus } from 'lucide-react';
 
-export type SidebarSection = 'polizas' | 'alertas' | 'tarifas' | 'configuracion';
+export type SidebarSection = 'polizas' | 'alertas' | 'tarifas' | 'usuarios' | 'configuracion';
 
 interface SidebarProps {
   activeSection: SidebarSection;
@@ -88,6 +88,21 @@ export function Sidebar({
               </span>
             )}
           </button>
+
+          <button
+  type="button"
+  onClick={() => onSelectSection('usuarios')}
+  className={
+    activeSection === 'usuarios'
+      ? 'w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-red-50 text-[#DC2626] font-semibold text-sm cursor-pointer border-0 text-left'
+      : 'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-sm cursor-pointer border-0 bg-transparent text-left'
+  }
+>
+  <span className="flex items-center gap-2.5">
+    <UserPlus size={18} className="shrink-0" />
+    Usuarios
+  </span>
+</button>
 
           <button
             type="button"
