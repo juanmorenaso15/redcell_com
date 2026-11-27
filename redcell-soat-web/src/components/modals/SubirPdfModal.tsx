@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { FileUp, X } from 'lucide-react';
+import { alertasSwal } from '../../utils/alerts';
 
 interface SubirPdfModalProps {
   isOpen: boolean;
@@ -7,20 +8,52 @@ interface SubirPdfModalProps {
   onUpload: (file: File) => Promise<void>;
 }
 
+const MAX_PDF_BYTES = 10 * 1024 * 1024; // 10 MB
+
 export function SubirPdfModal({ isOpen, onClose, onUpload }: SubirPdfModalProps) {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
   if (!isOpen) return null;
 
+  const handleFileChange = async (file: File | null) => {
+    if (!file) {
+      setPdfFile(null);
+      return;
+    }
+    const esPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (!esPdf) {
+      setPdfFile(null);
+      await alertasSwal.advertencia('Archivo no válido', 'Solo se admiten documentos en formato PDF.');
+      return;
+    }
+    if (file.size > MAX_PDF_BYTES) {
+      setPdfFile(null);
+      await alertasSwal.advertencia(
+        'Archivo muy pesado',
+        'El tamaño máximo permitido para el PDF es de 10 MB.'
+      );
+      return;
+    }
+    setPdfFile(file);
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!pdfFile) return;
+    if (!pdfFile) {
+      await alertasSwal.advertencia('Selecciona un PDF', 'Elige el archivo PDF del SOAT antes de subir.');
+      return;
+    }
     setUploading(true);
     try {
       await onUpload(pdfFile);
       setPdfFile(null);
       onClose();
+    } catch (err: unknown) {
+      await alertasSwal.error(
+        'Error al procesar PDF',
+        err instanceof Error ? err.message : 'No se pudo procesar el archivo PDF.'
+      );
     } finally {
       setUploading(false);
     }
@@ -46,11 +79,12 @@ export function SubirPdfModal({ isOpen, onClose, onUpload }: SubirPdfModalProps)
             <span className="text-sm font-medium text-center">
               {pdfFile ? pdfFile.name : 'Selecciona el PDF de Previsora o AXA Colpatria'}
             </span>
+            <span className="text-[11px] text-[#64748B] mt-1">Formato PDF · Máximo 10 MB</span>
             <input
               type="file"
-              accept="application/pdf"
+              accept="application/pdf,.pdf"
               className="hidden"
-              onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
             />
           </label>
 

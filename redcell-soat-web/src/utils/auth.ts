@@ -2,6 +2,7 @@ export interface UsuarioSesion {
   nombre: string;
   rol: string;
   username: string;
+  email?: string;
 }
 
 function decodificarPayloadJwt(token: string | null): Record<string, unknown> | null {
@@ -35,6 +36,28 @@ function formatearRol(rawRol: unknown): string {
 }
 
 export function obtenerUsuarioSesion(): UsuarioSesion {
+  const cachedRaw = localStorage.getItem('redcell_perfil');
+  if (cachedRaw) {
+    try {
+      const cached = JSON.parse(cachedRaw) as {
+        username?: string;
+        email?: string;
+        rol?: string;
+      };
+      if (cached?.username) {
+        const cleanUser = cached.username.replace(/^@+/, '').trim() || 'usuario';
+        return {
+          nombre: cleanUser,
+          username: `@${cleanUser}`,
+          rol: formatearRol(cached.rol),
+          email: cached.email,
+        };
+      }
+    } catch {
+      // Ignorar JSON inválido y caer en JWT
+    }
+  }
+
   const token = localStorage.getItem('redcell_token');
   const payload = decodificarPayloadJwt(token);
 
@@ -61,5 +84,10 @@ export function obtenerUsuarioSesion(): UsuarioSesion {
 
   const rol = formatearRol(payload?.rol ?? payload?.role ?? payload?.authorities);
 
-  return { nombre, rol, username };
+  return {
+    nombre,
+    rol,
+    username,
+    email: typeof payload?.email === 'string' ? payload.email : undefined,
+  };
 }

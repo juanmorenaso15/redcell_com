@@ -1,4 +1,11 @@
-import type { AlertaRecordatorio, ConfiguracionTarifa, Poliza, PolizaUpdateDTO } from '../types/soat';
+import type {
+  ActualizarPerfilDTO,
+  AlertaRecordatorio,
+  ConfiguracionTarifa,
+  PerfilUsuario,
+  Poliza,
+  PolizaUpdateDTO,
+} from '../types/soat';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://redcell-soat-api.onrender.com';
 
@@ -28,11 +35,54 @@ export const api = {
     });
     const data = await handleResponse<{ token: string }>(res);
     localStorage.setItem('redcell_token', data.token);
+    localStorage.removeItem('redcell_perfil');
     return data.token;
   },
 
   logout: () => {
     localStorage.removeItem('redcell_token');
+    localStorage.removeItem('redcell_perfil');
+  },
+
+  solicitarRecuperacion: async (email: string): Promise<{ message: string }> => {
+    const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ email }),
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  restablecerContrasena: async (
+    token: string,
+    newPassword: string
+  ): Promise<{ message: string }> => {
+    const res = await fetch(`${API_URL}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: getHeaders(true),
+      body: JSON.stringify({ token, newPassword }),
+    });
+    return handleResponse<{ message: string }>(res);
+  },
+
+  obtenerPerfil: async (): Promise<PerfilUsuario> => {
+    const res = await fetch(`${API_URL}/api/auth/perfil`, {
+      headers: getHeaders(false),
+    });
+    const perfil = await handleResponse<PerfilUsuario>(res);
+    localStorage.setItem('redcell_perfil', JSON.stringify(perfil));
+    return perfil;
+  },
+
+  actualizarPerfil: async (dto: ActualizarPerfilDTO): Promise<PerfilUsuario> => {
+    const res = await fetch(`${API_URL}/api/auth/perfil`, {
+      method: 'PUT',
+      headers: getHeaders(true),
+      body: JSON.stringify(dto),
+    });
+    const perfil = await handleResponse<PerfilUsuario>(res);
+    localStorage.setItem('redcell_perfil', JSON.stringify(perfil));
+    return perfil;
   },
 
   // Pólizas

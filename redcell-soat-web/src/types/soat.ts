@@ -61,3 +61,15 @@ export interface ConfiguracionTarifa {
   valor: number;
   activo: boolean;
 }
+
+export interface PerfilUsuario {
+  id: number;
+  email: string;
+  username: string;
+  rol: string;
+}
+
+export interface ActualizarPerfilDTO {
+  username: string;
+  email: string;
+}

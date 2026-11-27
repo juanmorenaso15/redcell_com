@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { CheckCircle2, Coins, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import type { ConfiguracionTarifa, Poliza } from '../../types/soat';
+import { alertasSwal } from '../../utils/alerts';
 import { formatCOP } from '../../utils/format';
 
 interface UsoPlataformaSectionProps {
@@ -11,6 +12,14 @@ interface UsoPlataformaSectionProps {
   onUpdateTarifa: (id: number, tarifa: Partial<ConfiguracionTarifa>) => Promise<void>;
   onDeleteTarifa: (id: number) => Promise<void>;
   onApplyTarifaToPolizas: (valor: number, soloSinTarifa: boolean) => Promise<void>;
+}
+
+const MAX_TARIFA_COP = 500000;
+
+function acotarTarifa(raw: string): number {
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return 0;
+  return Math.min(MAX_TARIFA_COP, Math.max(0, Math.round(num)));
 }
 
 export function UsoPlataformaSection({
@@ -34,17 +43,20 @@ export function UsoPlataformaSection({
   const [applying, setApplying] = useState(false);
 
   const tarifaActiva = tarifas.find((t) => Boolean(t.activo));
-  const valorActivo = Number(tarifaActiva?.valor ?? 15000);
+  const valorActivo = acotarTarifa(String(tarifaActiva?.valor ?? 15000));
   const tarifaAnioActual = tarifas.find((t) => t.nombre?.includes(String(anioActual)));
 
   const handleCrear = async (e: FormEvent) => {
     e.preventDefault();
-    if (!nombre.trim()) return;
+    if (!nombre.trim()) {
+      await alertasSwal.advertencia('Nombre requerido', 'Escribe un nombre para la tarifa.');
+      return;
+    }
     setSubmitting(true);
     try {
       await onCreateTarifa({
-        nombre: nombre.trim(),
-        valor: Math.max(0, Number(valor || 0)),
+        nombre: nombre.trim().slice(0, 80),
+        valor: acotarTarifa(valor),
         activo: activarAlCrear,
       });
       setNombre(`Uso Plataforma ${new Date().getFullYear()}`);
@@ -57,16 +69,16 @@ export function UsoPlataformaSection({
   const iniciarEdicion = (t: ConfiguracionTarifa) => {
     if (!t.id) return;
     setEditingId(t.id);
-    setEditNombre(t.nombre);
-    setEditValor(String(t.valor));
+    setEditNombre(t.nombre.slice(0, 80));
+    setEditValor(String(acotarTarifa(String(t.valor))));
   };
 
   const guardarEdicion = async (id: number) => {
     setSubmitting(true);
     try {
       await onUpdateTarifa(id, {
-        nombre: editNombre.trim() || `Uso Plataforma ${new Date().getFullYear()}`,
-        valor: Math.max(0, Number(editValor || 0)),
+        nombre: (editNombre.trim() || `Uso Plataforma ${new Date().getFullYear()}`).slice(0, 80),
+        valor: acotarTarifa(editValor),
       });
       setEditingId(null);
     } finally {
@@ -75,6 +87,15 @@ export function UsoPlataformaSection({
   };
 
   const handleAplicar = async (soloSinTarifa: boolean) => {
+    const ok = await alertasSwal.confirmar(
+      soloSinTarifa ? 'Aplicar a pólizas en $0' : 'Aplicar a todas las pólizas',
+      soloSinTarifa
+        ? `Se asignará ${formatCOP(valorActivo)} únicamente a las pólizas con uso de plataforma en $0.`
+        : `Se actualizará el uso de plataforma a ${formatCOP(valorActivo)} en todas las ${polizas.length} pólizas registradas.`,
+      'Aplicar tarifa'
+    );
+    if (!ok) return;
+
     setApplying(true);
     try {
       await onApplyTarifaToPolizas(valorActivo, soloSinTarifa);
@@ -99,7 +120,9 @@ export function UsoPlataformaSection({
           </h2>
           <p className="text-xs text-[#64748B] mt-1 mb-0">
             Año detectado por el sistema: <strong>{anioActual}</strong>
-            {tarifaAnioActual ? ` · Tarifa registrada para ${anioActual}: ${tarifaAnioActual.nombre} (${formatCOP(tarifaAnioActual.valor)})` : ` · Sin tarifa específica creada para ${anioActual}`}
+            {tarifaAnioActual
+              ? ` · Tarifa registrada para ${anioActual}: ${tarifaAnioActual.nombre} (${formatCOP(tarifaAnioActual.valor)})`
+              : ` · Sin tarifa específica creada para ${anioActual}`}
             {' · '}
             {polizas.length} pólizas registradas.
           </p>
@@ -138,9 +161,12 @@ export function UsoPlataformaSection({
           </h3>
 
           <div>
-            <label className="block text-xs font-semibold mb-1">Nombre de la tarifa</label>
+            <label className="block text-xs font-semibold mb-1">
+              Nombre de la tarifa <span className="text-[11px] font-normal text-[#64748B]">(máx. 80)</span>
+            </label>
             <input
               type="text"
+              maxLength={80}
               required
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
@@ -150,14 +176,17 @@ export function UsoPlataformaSection({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold mb-1">Valor uso de plataforma (COP)</label>
+            <label className="block text-xs font-semibold mb-1">
+              Valor uso de plataforma (0 a {formatCOP(MAX_TARIFA_COP)})
+            </label>
             <input
               type="number"
               min={0}
+              max={MAX_TARIFA_COP}
               step={100}
               required
               value={valor}
-              onChange={(e) => setValor(e.target.value)}
+              onChange={(e) => setValor(String(acotarTarifa(e.target.value)))}
               className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm font-semibold"
             />
           </div>
@@ -208,6 +237,7 @@ export function UsoPlataformaSection({
                       <div className="flex-1 flex flex-wrap items-center gap-2">
                         <input
                           type="text"
+                          maxLength={80}
                           value={editNombre}
                           onChange={(e) => setEditNombre(e.target.value)}
                           className="px-2.5 py-1.5 rounded-lg border border-[#E2E8F0] text-xs bg-white flex-1"
@@ -215,9 +245,10 @@ export function UsoPlataformaSection({
                         <input
                           type="number"
                           min={0}
+                          max={MAX_TARIFA_COP}
                           step={100}
                           value={editValor}
-                          onChange={(e) => setEditValor(e.target.value)}
+                          onChange={(e) => setEditValor(String(acotarTarifa(e.target.value)))}
                           className="px-2.5 py-1.5 rounded-lg border border-[#E2E8F0] text-xs bg-white w-28 font-semibold"
                         />
                         <button

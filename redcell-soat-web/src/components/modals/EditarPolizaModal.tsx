@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { X } from 'lucide-react';
 import type { Poliza, PolizaUpdateDTO } from '../../types/soat';
+import { alertasSwal } from '../../utils/alerts';
 import { formatCOP } from '../../utils/format';
 
 interface EditarPolizaModalProps {
@@ -27,6 +28,25 @@ interface FormState {
   email: string;
 }
 
+const LIMITES = {
+  placaMax: 8,
+  aseguradoraMax: 80,
+  tipoVehiculoMax: 80,
+  marcaLineaMax: 100,
+  propietarioMax: 120,
+  tipoDocMax: 10,
+  documentoMax: 99999999999,
+  cilindrajeMax: 15000,
+  edadMax: 100,
+  capacidadMax: 100,
+  usoPlataformaMax: 500000,
+  telefonoMax: 15,
+  emailMax: 120,
+} as const;
+
+const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 const initialForm: FormState = {
   placa: '',
   tipoVehiculo: '',
@@ -45,6 +65,13 @@ const initialForm: FormState = {
   email: '',
 };
 
+function clampNumero(raw: string, min: number, max: number, allowDecimal = false): number {
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return min;
+  const clamped = Math.min(max, Math.max(min, num));
+  return allowDecimal ? Math.round(clamped * 10) / 10 : Math.round(clamped);
+}
+
 export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModalProps) {
   const [form, setForm] = useState<FormState>(initialForm);
   const [saving, setSaving] = useState(false);
@@ -52,24 +79,33 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
   useEffect(() => {
     if (poliza) {
       setForm({
-        placa: poliza.placa ?? '',
-        tipoVehiculo: poliza.tipoVehiculo ?? '',
-        marcaLinea: poliza.marcaLinea ?? '',
-        cilindraje: String(poliza.cilindraje ?? 0),
-        aseguradora: poliza.aseguradora ?? '',
-        edadVehiculo: String(poliza.edadVehiculo ?? 0),
-        capacidadToneladas: String(poliza.capacidadToneladas ?? 0),
+        placa: (poliza.placa ?? '').slice(0, LIMITES.placaMax),
+        tipoVehiculo: (poliza.tipoVehiculo ?? '').slice(0, LIMITES.tipoVehiculoMax),
+        marcaLinea: (poliza.marcaLinea ?? '').slice(0, LIMITES.marcaLineaMax),
+        cilindraje: String(clampNumero(String(poliza.cilindraje ?? 0), 0, LIMITES.cilindrajeMax)),
+        aseguradora: (poliza.aseguradora ?? '').slice(0, LIMITES.aseguradoraMax),
+        edadVehiculo: String(clampNumero(String(poliza.edadVehiculo ?? 0), 0, LIMITES.edadMax)),
+        capacidadToneladas: String(
+          clampNumero(String(poliza.capacidadToneladas ?? 0), 0, LIMITES.capacidadMax, true)
+        ),
         desde: poliza.desde ?? '',
         hasta: poliza.hasta ?? '',
-        propietario: poliza.propietario ?? '',
-        tipoDocumento: poliza.tipoDocumento ?? 'CC',
-        documento: String(poliza.documento ?? 0),
-        usoPlataforma: String(poliza.usoPlataforma ?? 15000),
-        telefono: poliza.telefono ?? '',
-        email: poliza.email ?? '',
+        propietario: (poliza.propietario ?? '').slice(0, LIMITES.propietarioMax),
+        tipoDocumento: (poliza.tipoDocumento ?? 'CC').slice(0, LIMITES.tipoDocMax),
+        documento: String(clampNumero(String(poliza.documento ?? 0), 0, LIMITES.documentoMax)),
+        usoPlataforma: String(
+          clampNumero(String(poliza.usoPlataforma ?? 15000), 0, LIMITES.usoPlataformaMax)
+        ),
+        telefono: (poliza.telefono ?? '').replace(/\D/g, '').slice(0, LIMITES.telefonoMax),
+        email: (poliza.email ?? '').slice(0, LIMITES.emailMax),
       });
     }
   }, [poliza]);
+
+  const usoNormalizado = useMemo(
+    () => clampNumero(form.usoPlataforma, 0, LIMITES.usoPlataformaMax),
+    [form.usoPlataforma]
+  );
 
   if (!poliza) return null;
 
@@ -77,36 +113,108 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  const handleNumeroAcotado = (
+    key: 'cilindraje' | 'edadVehiculo' | 'capacidadToneladas' | 'documento' | 'usoPlataforma',
+    raw: string,
+    max: number,
+    allowDecimal = false
+  ) => {
+    if (raw === '') {
+      setField(key, '');
+      return;
+    }
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return;
+    if (parsed > max) {
+      setField(key, String(max));
+      return;
+    }
+    if (parsed < 0) {
+      setField(key, '0');
+      return;
+    }
+    setField(key, allowDecimal ? raw.slice(0, 6) : String(Math.trunc(parsed)));
+  };
+
+  const validarFormulario = (): string | null => {
+    const placaClean = form.placa.trim().toUpperCase();
+    if (!/^[A-Z0-9-]{3,8}$/.test(placaClean)) {
+      return 'La placa debe tener entre 3 y 8 caracteres (letras, números o guion).';
+    }
+
+    if (form.desde.trim() && !FECHA_REGEX.test(form.desde.trim())) {
+      return 'La fecha "Vigencia desde" debe tener formato YYYY-MM-DD.';
+    }
+    if (form.hasta.trim() && !FECHA_REGEX.test(form.hasta.trim())) {
+      return 'La fecha "Vigencia hasta" debe tener formato YYYY-MM-DD.';
+    }
+    if (form.desde.trim() && form.hasta.trim() && form.hasta.trim() < form.desde.trim()) {
+      return 'La fecha de vencimiento ("Vigencia hasta") no puede ser anterior a "Vigencia desde".';
+    }
+
+    const telClean = form.telefono.replace(/\D/g, '');
+    if (telClean && (telClean.length < 7 || telClean.length > LIMITES.telefonoMax)) {
+      return `El teléfono debe tener entre 7 y ${LIMITES.telefonoMax} dígitos.`;
+    }
+
+    const emailClean = form.email.trim();
+    if (emailClean && !EMAIL_REGEX.test(emailClean)) {
+      return 'Ingresa un correo electrónico válido o deja el campo vacío.';
+    }
+
+    const usoNum = Number(form.usoPlataforma || 0);
+    if (!Number.isFinite(usoNum) || usoNum < 0 || usoNum > LIMITES.usoPlataformaMax) {
+      return `El uso de plataforma debe estar entre $0 y ${formatCOP(LIMITES.usoPlataformaMax)}.`;
+    }
+
+    return null;
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const errorValidacion = validarFormulario();
+    if (errorValidacion) {
+      await alertasSwal.advertencia('Revisa los límites del formulario', errorValidacion);
+      return;
+    }
+
     setSaving(true);
     try {
       const dto: PolizaUpdateDTO = {
-        placa: form.placa.trim().toUpperCase(),
-        tipoVehiculo: form.tipoVehiculo.trim(),
-        marcaLinea: form.marcaLinea.trim(),
-        cilindraje: Math.max(0, Number(form.cilindraje || 0)),
-        aseguradora: form.aseguradora.trim(),
-        edadVehiculo: Math.max(0, Number(form.edadVehiculo || 0)),
-        capacidadToneladas: Math.max(0, Number(form.capacidadToneladas || 0)),
+        placa: form.placa.trim().toUpperCase().slice(0, LIMITES.placaMax),
+        tipoVehiculo: form.tipoVehiculo.trim().slice(0, LIMITES.tipoVehiculoMax),
+        marcaLinea: form.marcaLinea.trim().slice(0, LIMITES.marcaLineaMax),
+        cilindraje: clampNumero(form.cilindraje, 0, LIMITES.cilindrajeMax),
+        aseguradora: form.aseguradora.trim().slice(0, LIMITES.aseguradoraMax),
+        edadVehiculo: clampNumero(form.edadVehiculo, 0, LIMITES.edadMax),
+        capacidadToneladas: clampNumero(
+          form.capacidadToneladas,
+          0,
+          LIMITES.capacidadMax,
+          true
+        ),
         desde: form.desde.trim(),
         hasta: form.hasta.trim(),
-        propietario: form.propietario.trim(),
-        tipoDocumento: form.tipoDocumento.trim(),
-        documento: Math.max(0, Number(form.documento || 0)),
-        usoPlataforma: Math.max(0, Number(form.usoPlataforma || 0)),
-        telefono: form.telefono.trim(),
-        email: form.email.trim(),
+        propietario: form.propietario.trim().slice(0, LIMITES.propietarioMax),
+        tipoDocumento: form.tipoDocumento.trim().toUpperCase().slice(0, LIMITES.tipoDocMax),
+        documento: clampNumero(form.documento, 0, LIMITES.documentoMax),
+        usoPlataforma: usoNormalizado,
+        telefono: form.telefono.replace(/\D/g, '').slice(0, LIMITES.telefonoMax),
+        email: form.email.trim().toLowerCase().slice(0, LIMITES.emailMax),
       };
       await onSave(poliza.id, dto);
       onClose();
+    } catch (err: unknown) {
+      await alertasSwal.error(
+        'No se pudo guardar la póliza',
+        err instanceof Error ? err.message : 'Error al actualizar la póliza'
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const totalSimulado =
-    Number(poliza.precioSoat || 0) + Math.max(0, Number(form.usoPlataforma || 0));
+  const totalSimulado = Number(poliza.precioSoat || 0) + usoNormalizado;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
@@ -114,7 +222,6 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
         className="bg-white rounded-2xl border border-[#E2E8F0] w-full max-w-2xl p-6 shadow-sm mx-auto"
         style={{ maxHeight: '90vh', overflowY: 'auto' }}
       >
-        {/* Encabezado centrado */}
         <div className="relative pb-4 border-b border-[#E2E8F0] text-center mb-4">
           <button
             type="button"
@@ -128,12 +235,11 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
             Editar SOAT completo · {poliza.placa}
           </h2>
           <p className="text-xs text-[#64748B] mt-1 mb-0">
-            Modifica los datos del vehículo, propietario, vigencia o uso de plataforma.
+            Todos los campos cuentan con topes máximos para evitar errores o desbordamientos.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Simulación en vivo */}
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div className="p-3.5 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
             <div>
               <div className="text-[11px] text-[#64748B]">Valor SOAT</div>
@@ -141,9 +247,7 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
             </div>
             <div>
               <div className="text-[11px] text-[#64748B]">Uso de plataforma</div>
-              <div className="text-sm font-bold text-[#16A34A]">
-                {formatCOP(Number(form.usoPlataforma || 0))}
-              </div>
+              <div className="text-sm font-bold text-[#16A34A]">{formatCOP(usoNormalizado)}</div>
             </div>
             <div>
               <div className="text-[11px] text-[#DC2626] font-semibold">Total estimado</div>
@@ -151,23 +255,29 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
             </div>
           </div>
 
-          {/* Vehículo */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold mb-1">Placa</label>
+              <label className="block text-xs font-semibold mb-1">
+                Placa <span className="text-[11px] font-normal text-[#64748B]">(máx. 8)</span>
+              </label>
               <input
                 type="text"
-                required
+                maxLength={LIMITES.placaMax}
                 value={form.placa}
-                onChange={(e) => setField('placa', e.target.value)}
+                onChange={(e) =>
+                  setField('placa', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))
+                }
                 className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm uppercase font-semibold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1">Aseguradora</label>
+              <label className="block text-xs font-semibold mb-1">
+                Aseguradora <span className="text-[11px] font-normal text-[#64748B]">(máx. 80)</span>
+              </label>
               <input
                 type="text"
+                maxLength={LIMITES.aseguradoraMax}
                 value={form.aseguradora}
                 onChange={(e) => setField('aseguradora', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm"
@@ -175,9 +285,12 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1">Tipo / Clase de vehículo</label>
+              <label className="block text-xs font-semibold mb-1">
+                Tipo / Clase <span className="text-[11px] font-normal text-[#64748B]">(máx. 80)</span>
+              </label>
               <input
                 type="text"
+                maxLength={LIMITES.tipoVehiculoMax}
                 value={form.tipoVehiculo}
                 onChange={(e) => setField('tipoVehiculo', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm"
@@ -185,9 +298,12 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1">Marca y línea</label>
+              <label className="block text-xs font-semibold mb-1">
+                Marca y línea <span className="text-[11px] font-normal text-[#64748B]">(máx. 100)</span>
+              </label>
               <input
                 type="text"
+                maxLength={LIMITES.marcaLineaMax}
                 value={form.marcaLinea}
                 onChange={(e) => setField('marcaLinea', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm"
@@ -195,47 +311,72 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1">Cilindraje (cc)</label>
+              <label className="block text-xs font-semibold mb-1">
+                Cilindraje (cc){' '}
+                <span className="text-[11px] font-normal text-[#64748B]">
+                  (0–{LIMITES.cilindrajeMax})
+                </span>
+              </label>
               <input
                 type="number"
                 min={0}
+                max={LIMITES.cilindrajeMax}
                 value={form.cilindraje}
-                onChange={(e) => setField('cilindraje', e.target.value)}
+                onChange={(e) =>
+                  handleNumeroAcotado('cilindraje', e.target.value, LIMITES.cilindrajeMax)
+                }
                 className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-semibold mb-1">Edad (años)</label>
+                <label className="block text-xs font-semibold mb-1">
+                  Edad (0–{LIMITES.edadMax})
+                </label>
                 <input
                   type="number"
                   min={0}
+                  max={LIMITES.edadMax}
                   value={form.edadVehiculo}
-                  onChange={(e) => setField('edadVehiculo', e.target.value)}
+                  onChange={(e) =>
+                    handleNumeroAcotado('edadVehiculo', e.target.value, LIMITES.edadMax)
+                  }
                   className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1">Capacidad (t)</label>
+                <label className="block text-xs font-semibold mb-1">
+                  Cap. t (0–{LIMITES.capacidadMax})
+                </label>
                 <input
                   type="number"
                   min={0}
+                  max={LIMITES.capacidadMax}
                   step="0.1"
                   value={form.capacidadToneladas}
-                  onChange={(e) => setField('capacidadToneladas', e.target.value)}
+                  onChange={(e) =>
+                    handleNumeroAcotado(
+                      'capacidadToneladas',
+                      e.target.value,
+                      LIMITES.capacidadMax,
+                      true
+                    )
+                  }
                   className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm"
                 />
               </div>
             </div>
           </div>
 
-          {/* Propietario y vigencia */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[#E2E8F0]">
             <div>
-              <label className="block text-xs font-semibold mb-1">Propietario</label>
+              <label className="block text-xs font-semibold mb-1">
+                Propietario <span className="text-[11px] font-normal text-[#64748B]">(máx. 120)</span>
+              </label>
               <input
                 type="text"
+                maxLength={LIMITES.propietarioMax}
                 value={form.propietario}
                 onChange={(e) => setField('propietario', e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm"
@@ -244,11 +385,14 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-xs font-semibold mb-1">Tipo doc.</label>
+                <label className="block text-xs font-semibold mb-1">
+                  Tipo doc. <span className="text-[11px] font-normal text-[#64748B]">(máx. 10)</span>
+                </label>
                 <input
                   type="text"
+                  maxLength={LIMITES.tipoDocMax}
                   value={form.tipoDocumento}
-                  onChange={(e) => setField('tipoDocumento', e.target.value)}
+                  onChange={(e) => setField('tipoDocumento', e.target.value.toUpperCase())}
                   className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm"
                 />
               </div>
@@ -257,17 +401,21 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
                 <input
                   type="number"
                   min={0}
+                  max={LIMITES.documentoMax}
                   value={form.documento}
-                  onChange={(e) => setField('documento', e.target.value)}
+                  onChange={(e) =>
+                    handleNumeroAcotado('documento', e.target.value, LIMITES.documentoMax)
+                  }
                   className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1">Vigencia desde</label>
+              <label className="block text-xs font-semibold mb-1">Vigencia desde (YYYY-MM-DD)</label>
               <input
                 type="text"
+                maxLength={10}
                 value={form.desde}
                 onChange={(e) => setField('desde', e.target.value)}
                 placeholder="YYYY-MM-DD"
@@ -276,9 +424,10 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1">Vigencia hasta</label>
+              <label className="block text-xs font-semibold mb-1">Vigencia hasta (YYYY-MM-DD)</label>
               <input
                 type="text"
+                maxLength={10}
                 value={form.hasta}
                 onChange={(e) => setField('hasta', e.target.value)}
                 placeholder="YYYY-MM-DD"
@@ -287,20 +436,35 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1">Teléfono WhatsApp</label>
+              <label className="block text-xs font-semibold mb-1">
+                Teléfono WhatsApp{' '}
+                <span className="text-[11px] font-normal text-[#64748B]">
+                  (máx. {LIMITES.telefonoMax} dígitos)
+                </span>
+              </label>
               <input
                 type="text"
+                inputMode="numeric"
+                maxLength={LIMITES.telefonoMax}
                 value={form.telefono}
-                onChange={(e) => setField('telefono', e.target.value)}
+                onChange={(e) =>
+                  setField('telefono', e.target.value.replace(/\D/g, '').slice(0, LIMITES.telefonoMax))
+                }
                 placeholder="3117034142"
                 className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1">Correo electrónico</label>
+              <label className="block text-xs font-semibold mb-1">
+                Correo electrónico{' '}
+                <span className="text-[11px] font-normal text-[#64748B]">
+                  (máx. {LIMITES.emailMax})
+                </span>
+              </label>
               <input
                 type="email"
+                maxLength={LIMITES.emailMax}
                 value={form.email}
                 onChange={(e) => setField('email', e.target.value)}
                 placeholder="cliente@correo.com"
@@ -309,16 +473,22 @@ export function EditarPolizaModal({ poliza, onClose, onSave }: EditarPolizaModal
             </div>
           </div>
 
-          {/* Uso de plataforma */}
           <div className="pt-2 border-t border-[#E2E8F0]">
-            <label className="block text-xs font-semibold mb-1">Uso de plataforma (COP)</label>
+            <label className="block text-xs font-semibold mb-1">
+              Uso de plataforma (COP){' '}
+              <span className="text-[11px] font-normal text-[#64748B]">
+                (0 a {formatCOP(LIMITES.usoPlataformaMax)})
+              </span>
+            </label>
             <input
               type="number"
               min={0}
+              max={LIMITES.usoPlataformaMax}
               step={100}
-              required
               value={form.usoPlataforma}
-              onChange={(e) => setField('usoPlataforma', e.target.value)}
+              onChange={(e) =>
+                handleNumeroAcotado('usoPlataforma', e.target.value, LIMITES.usoPlataformaMax)
+              }
               className="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] text-sm font-semibold"
             />
           </div>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell, CheckCircle2, Coins, ExternalLink, LogOut, Plus, ShieldCheck, X } from 'lucide-react';
+import { ConfiguracionSection } from '../components/configuracion/ConfiguracionSection';
 import { Sidebar, type SidebarSection } from '../components/layout/Sidebar';
 import {
   construirMensajeWhatsappConEmojis,
@@ -12,11 +13,14 @@ import { PolizasTable, type EstadoVigenciaFilter } from '../components/polizas/P
 import { UsoPlataformaSection } from '../components/tarifas/UsoPlataformaSection';
 import { api } from '../services/api';
 import type {
+  ActualizarPerfilDTO,
   AlertaRecordatorio,
   ConfiguracionTarifa,
+  PerfilUsuario,
   Poliza,
   PolizaUpdateDTO,
 } from '../types/soat';
+import { alertasSwal } from '../utils/alerts';
 import { obtenerUsuarioSesion } from '../utils/auth';
 import { buildWhatsappLink, formatCOP } from '../utils/format';
 
@@ -28,7 +32,10 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
   const [polizas, setPolizas] = useState<Poliza[]>([]);
   const [alertas, setAlertas] = useState<AlertaRecordatorio[]>([]);
   const [tarifas, setTarifas] = useState<ConfiguracionTarifa[]>([]);
+  const [perfil, setPerfil] = useState<PerfilUsuario | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingPerfil, setLoadingPerfil] = useState(false);
+  const [sesionTick, setSesionTick] = useState(0);
   const [search, setSearch] = useState('');
   const [aseguradoraFilter, setAseguradoraFilter] = useState('TODAS');
   const [tipoVehiculoFilter, setTipoVehiculoFilter] = useState('TODOS');
@@ -41,19 +48,25 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
   const [editingPoliza, setEditingPoliza] = useState<Poliza | null>(null);
   const [markingKey, setMarkingKey] = useState<string | null>(null);
 
-  const usuario = useMemo(() => obtenerUsuarioSesion(), []);
+  const usuario = useMemo(() => obtenerUsuarioSesion(), [sesionTick]);
 
   const cargarDatos = useCallback(async () => {
     setLoading(true);
+    setLoadingPerfil(true);
     try {
-      const [listaPolizas, listaAlertas, listaTarifas] = await Promise.all([
+      const [listaPolizas, listaAlertas, listaTarifas, perfilUsuario] = await Promise.all([
         api.listarPolizas(),
         api.obtenerAlertas().catch(() => []),
         api.listarTarifas().catch(() => []),
+        api.obtenerPerfil().catch(() => null),
       ]);
       setPolizas(listaPolizas);
       setAlertas(listaAlertas);
       setTarifas(listaTarifas);
+      if (perfilUsuario) {
+        setPerfil(perfilUsuario);
+        setSesionTick((t) => t + 1);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error cargando datos';
       if (msg.includes('401') || msg.includes('403') || msg.toLowerCase().includes('token')) {
@@ -63,6 +76,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
       }
     } finally {
       setLoading(false);
+      setLoadingPerfil(false);
     }
   }, [onUnauthorized]);
 
@@ -74,26 +88,37 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
 
   const handleUploadPdf = async (file: File) => {
     const res = await api.subirPdf(file);
-    setFeedback(res.message);
+    await alertasSwal.exito('PDF procesado', res.message || 'Póliza cargada correctamente.');
     await cargarDatos();
   };
 
   const handleGuardarEdicion = async (id: number, dto: PolizaUpdateDTO) => {
     const actualizada = await api.actualizarPoliza(id, dto);
-    setFeedback(
-      `Póliza ${actualizada.placa} actualizada · Uso de plataforma: ${formatCOP(actualizada.usoPlataforma)} · Total: ${formatCOP(actualizada.totalPagar)}.`
+    await alertasSwal.exito(
+      `Póliza ${actualizada.placa} actualizada`,
+      `Uso de plataforma: ${formatCOP(actualizada.usoPlataforma)} · Total: ${formatCOP(actualizada.totalPagar)}`
     );
     await cargarDatos();
   };
 
   const handleEliminar = async (poliza: Poliza) => {
-    if (!window.confirm(`¿Eliminar la póliza de la placa ${poliza.placa}?`)) return;
+    const confirmado = await alertasSwal.confirmar(
+      `¿Eliminar póliza ${poliza.placa}?`,
+      `Se eliminará permanentemente el registro del SOAT de la placa ${poliza.placa}.`,
+      'Sí, eliminar',
+      true
+    );
+    if (!confirmado) return;
+
     try {
       await api.eliminarPoliza(poliza.id);
-      setFeedback(`Póliza ${poliza.placa} eliminada.`);
+      await alertasSwal.exito('Póliza eliminada', `Se eliminó la póliza ${poliza.placa}.`);
       await cargarDatos();
     } catch (err: unknown) {
-      setFeedback(err instanceof Error ? err.message : 'Error al eliminar póliza');
+      await alertasSwal.error(
+        'No se pudo eliminar',
+        err instanceof Error ? err.message : 'Error al eliminar póliza'
+      );
     }
   };
 
@@ -102,10 +127,13 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
     setMarkingKey(key);
     try {
       await api.marcarWhatsappEnviado(polizaId, tipo);
-      setFeedback(`Recordatorio (${tipo}) marcado como enviado por WhatsApp.`);
+      await alertasSwal.toast('success', `Recordatorio (${tipo}) marcado como enviado`);
       await cargarDatos();
     } catch (err: unknown) {
-      setFeedback(err instanceof Error ? err.message : 'Error al marcar WhatsApp como enviado');
+      await alertasSwal.error(
+        'Error al actualizar',
+        err instanceof Error ? err.message : 'Error al marcar WhatsApp como enviado'
+      );
     } finally {
       setMarkingKey(null);
     }
@@ -113,7 +141,10 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
 
   const handleEnviarEmailManual = async (poliza: Poliza) => {
     if (!poliza.email?.trim()) {
-      setFeedback(`La póliza ${poliza.placa} no tiene correo registrado.`);
+      await alertasSwal.advertencia(
+        'Sin correo registrado',
+        `La póliza ${poliza.placa} no tiene correo electrónico registrado.`
+      );
       return;
     }
     try {
@@ -122,28 +153,50 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
         gmail: true,
         whatsapp: false,
       });
-      setFeedback(`Correo encolado para ${poliza.email.trim()} (Placa ${poliza.placa}).`);
+      await alertasSwal.exito(
+        'Correo encolado',
+        `Recordatorio enviado a ${poliza.email.trim()} (Placa ${poliza.placa}).`
+      );
     } catch (err: unknown) {
-      setFeedback(err instanceof Error ? err.message : 'Error al encolar correo');
+      await alertasSwal.error(
+        'Error al enviar correo',
+        err instanceof Error ? err.message : 'Error al encolar correo'
+      );
     }
+  };
+
+  const handleSavePerfil = async (dto: ActualizarPerfilDTO) => {
+    const actualizado = await api.actualizarPerfil(dto);
+    setPerfil(actualizado);
+    setSesionTick((t) => t + 1);
   };
 
   const handleCreateTarifa = async (nueva: Omit<ConfiguracionTarifa, 'id'>) => {
     await api.crearTarifa(nueva);
-    setFeedback(`Tarifa "${nueva.nombre}" guardada (${formatCOP(nueva.valor)}).`);
+    await alertasSwal.exito(
+      'Tarifa creada',
+      `"${nueva.nombre}" guardada con valor de ${formatCOP(nueva.valor)}.`
+    );
     await cargarDatos();
   };
 
   const handleUpdateTarifa = async (id: number, datos: Partial<ConfiguracionTarifa>) => {
     await api.actualizarTarifa(id, datos);
-    setFeedback('Configuración de uso de plataforma actualizada.');
+    await alertasSwal.exito('Tarifa actualizada', 'La configuración de uso de plataforma se guardó.');
     await cargarDatos();
   };
 
   const handleDeleteTarifa = async (id: number) => {
-    if (!window.confirm('¿Eliminar esta tarifa de uso de plataforma?')) return;
+    const confirmado = await alertasSwal.confirmar(
+      '¿Eliminar tarifa?',
+      'Esta acción eliminará la tarifa seleccionada.',
+      'Sí, eliminar',
+      true
+    );
+    if (!confirmado) return;
+
     await api.eliminarTarifa(id);
-    setFeedback('Tarifa eliminada.');
+    await alertasSwal.exito('Tarifa eliminada', 'La tarifa fue eliminada correctamente.');
     await cargarDatos();
   };
 
@@ -153,7 +206,10 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
       : polizas;
 
     if (objetivos.length === 0) {
-      setFeedback('No hay pólizas pendientes con uso de plataforma en $0.');
+      await alertasSwal.advertencia(
+        'Sin pólizas pendientes',
+        'No hay pólizas con uso de plataforma en $0.'
+      );
       return;
     }
 
@@ -179,7 +235,8 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
       )
     );
 
-    setFeedback(
+    await alertasSwal.exito(
+      'Tarifa aplicada',
       `Uso de plataforma (${formatCOP(valor)}) aplicado a ${objetivos.length} póliza(s).`
     );
     await cargarDatos();
@@ -248,7 +305,6 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#F8FAFC] text-[#0F172A] w-full">
-      {/* Barra superior en móvil */}
       <div className="flex md:hidden items-center justify-between gap-3 px-4 py-3 bg-white border-b border-[#E2E8F0]">
         <div className="flex items-center gap-2 min-w-0">
           <img
@@ -290,10 +346,12 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
         <header className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
           <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold text-[#0F172A] m-0 font-headline">
-              Base de datos SOAT
+              {activeSection === 'configuracion' ? 'Configuración' : 'Base de datos SOAT'}
             </h1>
             <p className="text-xs sm:text-sm text-[#64748B] mt-1 mb-0">
-              Consulta, carga PDFs, edita pólizas y gestiona uso de plataforma y recordatorios.
+              {activeSection === 'configuracion'
+                ? 'Gestiona tu perfil de usuario y parámetros del sistema.'
+                : 'Consulta, carga PDFs, edita pólizas y gestiona uso de plataforma y recordatorios.'}
             </p>
           </div>
 
@@ -348,7 +406,12 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
               </button>
             </div>
 
-            <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white border border-[#E2E8F0] shadow-sm shrink-0">
+            <button
+              type="button"
+              onClick={() => setActiveSection('configuracion')}
+              title="Abrir configuración de perfil"
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-white border border-[#E2E8F0] hover:bg-[#F8FAFC] shadow-sm shrink-0 cursor-pointer text-left"
+            >
               <img
                 src="/logo-redcell.png"
                 alt={usuario.nombre}
@@ -363,7 +426,7 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
                   {usuario.rol} · <span className="font-medium text-[#0F172A]">{usuario.username}</span>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
@@ -411,6 +474,14 @@ export function DashboardPage({ onUnauthorized }: DashboardPageProps) {
             onUpdateTarifa={handleUpdateTarifa}
             onDeleteTarifa={handleDeleteTarifa}
             onApplyTarifaToPolizas={handleApplyTarifaToPolizas}
+          />
+        ) : activeSection === 'configuracion' ? (
+          <ConfiguracionSection
+            perfil={perfil}
+            loadingPerfil={loadingPerfil}
+            tarifaActivaValor={tarifaActiva?.valor}
+            onSavePerfil={handleSavePerfil}
+            onIrATarifas={() => setActiveSection('tarifas')}
           />
         ) : (
           <section className="bg-white border border-[#E2E8F0] rounded-xl p-6">

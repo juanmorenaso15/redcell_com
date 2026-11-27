@@ -1,6 +1,6 @@
-import { Bell, Coins, LogOut, ShieldCheck } from 'lucide-react';
+import { Bell, Coins, LogOut, Settings, ShieldCheck } from 'lucide-react';
 
-export type SidebarSection = 'polizas' | 'alertas' | 'tarifas';
+export type SidebarSection = 'polizas' | 'alertas' | 'tarifas' | 'configuracion';
 
 interface SidebarProps {
   activeSection: SidebarSection;
@@ -87,6 +87,21 @@ export function Sidebar({
                 ${Math.round(tarifaActivaValor).toLocaleString('es-CO')}
               </span>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onSelectSection('configuracion')}
+            className={
+              activeSection === 'configuracion'
+                ? 'w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-[#F1F5F9] text-[#0F172A] font-semibold text-sm cursor-pointer border-0 text-left'
+                : 'w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F172A] text-sm cursor-pointer border-0 bg-transparent text-left'
+            }
+          >
+            <span className="flex items-center gap-2.5">
+              <Settings size={18} className="shrink-0" />
+              Configuración
+            </span>
           </button>
         </nav>
       </div>
