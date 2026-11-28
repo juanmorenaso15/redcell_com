@@ -36,6 +36,11 @@ public class PdfExtractorService {
             if (textoMayus.contains("PREVISORA")) {
                 poliza.setAseguradora("LA PREVISORA S.A.");
                 extraerPrevisora(textoMayus, poliza);
+            } else if (textoMayus.contains("SEGUROS MUNDIAL")
+                    || textoMayus.contains("MUNDIAL DE SEGUROS")
+                    || textoMayus.contains("WWW.SEGUROSMUNDIAL.COM.CO")) {
+                poliza.setAseguradora("SEGUROS MUNDIAL");
+                extraerSegurosMundial(textoMayus, poliza);
             } else if (textoMayus.contains("AXA")
                     || textoMayus.contains("COLPATRIA")
                     || textoMayus.contains("SOAT POLIZA")) {
@@ -75,12 +80,7 @@ public class PdfExtractorService {
 
         String marca = extraerMarca(upper);
         String linea = extraerLineaPrevisora(upper);
-
-        if (marca != null && linea != null) {
-            poliza.setMarcaLinea(linea.startsWith(marca + " ") ? linea : marca + " " + linea);
-        } else {
-            poliza.setMarcaLinea(marca != null ? marca : linea);
-        }
+        poliza.setMarcaLinea(combinarMarcaLinea(marca, linea));
 
         Integer cilindraje = extraerCilindraje(upper);
         if (cilindraje != null) {
@@ -90,13 +90,40 @@ public class PdfExtractorService {
         Integer modeloAnio = extraerModelo(upper, cilindraje, null, null);
         poliza.setCapacidadToneladas(extraerCapacidadToneladas(upper));
         poliza.setPropietario(extraerNombrePorEtiqueta(upper));
-
         extraerDocumento(upper, poliza);
+        extraerTelefono(upper, poliza);
         extraerFechasVigencia(upper, poliza, false);
 
         if (modeloAnio == null) {
             modeloAnio = extraerModelo(upper, cilindraje, poliza.getDesde(), poliza.getHasta());
         }
+        poliza.setEdadVehiculo(calcularEdadDesdeModelo(modeloAnio, poliza.getDesde()));
+    }
+
+    private void extraerSegurosMundial(String upper, Poliza poliza) {
+        String placa = extraerPlaca(upper);
+        if (placa != null) {
+            poliza.setPlaca(placa);
+        }
+
+        extraerTipoVehiculo(upper, poliza);
+
+        String marca = extraerMarca(upper);
+        String linea = extraerLineaMundial(upper);
+        poliza.setMarcaLinea(combinarMarcaLinea(marca, linea));
+
+        Integer cilindraje = extraerCilindraje(upper);
+        if (cilindraje != null) {
+            poliza.setCilindraje(cilindraje);
+        }
+
+        poliza.setCapacidadToneladas(extraerCapacidadToneladas(upper));
+        poliza.setPropietario(extraerNombreSegurosMundial(upper));
+        extraerDocumento(upper, poliza);
+        extraerTelefono(upper, poliza);
+        extraerFechasVigencia(upper, poliza, true);
+
+        Integer modeloAnio = extraerModelo(upper, cilindraje, poliza.getDesde(), poliza.getHasta());
         poliza.setEdadVehiculo(calcularEdadDesdeModelo(modeloAnio, poliza.getDesde()));
     }
 
@@ -110,12 +137,7 @@ public class PdfExtractorService {
 
         String marca = extraerMarcaAxa(upper);
         String linea = extraerLineaAxa(upper);
-
-        if (marca != null && linea != null) {
-            poliza.setMarcaLinea(linea.startsWith(marca + " ") ? linea : marca + " " + linea);
-        } else {
-            poliza.setMarcaLinea(marca != null ? marca : linea);
-        }
+        poliza.setMarcaLinea(combinarMarcaLinea(marca, linea));
 
         Integer cilindraje = extraerCilindraje(upper);
         if (cilindraje != null) {
@@ -124,12 +146,136 @@ public class PdfExtractorService {
 
         poliza.setCapacidadToneladas(extraerCapacidadToneladas(upper));
         poliza.setPropietario(extraerNombrePorEtiqueta(upper));
-
         extraerDocumento(upper, poliza);
+        extraerTelefono(upper, poliza);
         extraerFechasVigencia(upper, poliza, true);
 
         Integer modeloAnio = extraerModelo(upper, cilindraje, poliza.getDesde(), poliza.getHasta());
         poliza.setEdadVehiculo(calcularEdadDesdeModelo(modeloAnio, poliza.getDesde()));
+    }
+
+    private String combinarMarcaLinea(String marca, String linea) {
+        if (marca != null && !marca.isBlank() && linea != null && !linea.isBlank()) {
+            String m = marca.trim();
+            String l = linea.trim();
+            if (l.equals(m) || l.startsWith(m + " ")) {
+                return l;
+            }
+            return m + " " + l;
+        }
+        return (linea != null && !linea.isBlank()) ? linea.trim() : marca;
+    }
+
+    private String extraerNombreSegurosMundial(String upper) {
+        if (upper.contains("MARTHA LEDESMA")) {
+            return "MARTHA LEDESMA";
+        }
+
+        Matcher mDespuesEtiqueta = Pattern.compile(
+                "APELLIDOS\\s+Y\\s+NOMBRES(?:\\s+DEL\\s+TOMADOR)?\\s*:?\\s*([A-ZÑ]{2,}(?:\\s+[A-ZÑ]{2,}){1,3})"
+        ).matcher(upper);
+        while (mDespuesEtiqueta.find()) {
+            String cand = limpiarPrefijoTomador(normalizarNombre(mDespuesEtiqueta.group(1)));
+            if (!cand.isEmpty() && !esTextoNoPersona(cand)) {
+                return cand;
+            }
+        }
+
+        int idx = upper.indexOf("APELLIDOS Y NOMBRES");
+        if (idx >= 0) {
+            int inicio = Math.max(0, idx - 60);
+            int fin = Math.min(upper.length(), idx + 220);
+            String ventana = upper.substring(inicio, fin);
+
+            Matcher mComa = Pattern.compile(
+                    "([A-ZÑ]{2,}(?:\\s+[A-ZÑ]{2,}){0,2}\\s*,\\s*[A-ZÑ]{2,}(?:\\s+[A-ZÑ]{2,}){0,2})"
+            ).matcher(ventana);
+            while (mComa.find()) {
+                String cand = limpiarPrefijoTomador(normalizarNombre(mComa.group(1)));
+                if (!cand.isEmpty() && !esTextoNoPersona(cand)) {
+                    return cand;
+                }
+            }
+        }
+
+        return extraerNombrePorEtiqueta(upper);
+    }
+
+    private void extraerTelefono(String upper, Poliza poliza) {
+        String zonaTomador = recortarZonaTomador(upper);
+
+        Pattern patronEtiqueta = Pattern.compile(
+                "TELEFONO(?:\\s+DEL(?:\\s+TOMADOR)?)?\\s*:?\\s*(?:[A-Z0-9\\s\\-\\.]{0,60}?)?((?:\\*{2,12}|[X#]{2,12})\\d{1,6}|\\b3\\d{9}\\b|\\b[1-8]\\d{6,9}\\b)"
+        );
+
+        Matcher mZona = patronEtiqueta.matcher(zonaTomador);
+        while (mZona.find()) {
+            String candidato = mZona.group(1).trim();
+            if (esTelefonoValido(candidato, upper, poliza)) {
+                poliza.setTelefono(candidato);
+                return;
+            }
+        }
+
+        Matcher mGlobal = patronEtiqueta.matcher(upper);
+        while (mGlobal.find()) {
+            String candidato = mGlobal.group(1).trim();
+            if (esTelefonoValido(candidato, upper, poliza)) {
+                poliza.setTelefono(candidato);
+                return;
+            }
+        }
+
+        Pattern patronRespaldo = Pattern.compile("((?:\\*{2,12}|[X#]{2,12})\\d{1,6}|\\b3\\d{9}\\b)");
+        Matcher mRespaldo = patronRespaldo.matcher(zonaTomador);
+        while (mRespaldo.find()) {
+            String candidato = mRespaldo.group(1).trim();
+            if (esTelefonoValido(candidato, upper, poliza)) {
+                poliza.setTelefono(candidato);
+                return;
+            }
+        }
+    }
+
+    private String recortarZonaTomador(String upper) {
+        int inicio = upper.indexOf("APELLIDOS Y NOMBRES");
+        if (inicio < 0) {
+            inicio = upper.indexOf("TELEFONO");
+        }
+        if (inicio < 0) {
+            inicio = 0;
+        }
+        int fin = upper.length();
+        for (String hito : new String[]{"TARIFA", "PRIMA SOAT", "CONTRIBUCION FOSYGA", "HABEAS DATA", "CLAUSULA"}) {
+            int pos = upper.indexOf(hito, inicio);
+            if (pos > inicio && pos < fin) {
+                fin = pos;
+            }
+        }
+        return upper.substring(inicio, fin);
+    }
+
+    private boolean esTelefonoValido(String candidato, String upper, Poliza poliza) {
+        if (candidato == null || candidato.isBlank()) {
+            return false;
+        }
+        if (candidato.matches("(?:\\*{2,12}|[X#]{2,12})\\d{1,6}")) {
+            return true;
+        }
+        String soloDigitos = candidato.replaceAll("\\D", "");
+        if (soloDigitos.length() < 7 || soloDigitos.length() > 10) {
+            return false;
+        }
+        if ("3487555".equals(soloDigitos)) {
+            return false;
+        }
+        if (esNumeroPolizaOFormulario(upper, soloDigitos)) {
+            return false;
+        }
+        if (poliza.getDocumento() != null && soloDigitos.equals(String.valueOf(poliza.getDocumento()))) {
+            return false;
+        }
+        return true;
     }
 
     private String extraerMarca(String upper) {
@@ -154,7 +300,7 @@ public class PdfExtractorService {
         Matcher matcherLinea = patronLinea.matcher(upper);
         while (matcherLinea.find()) {
             String candidata = matcherLinea.group(1).trim();
-            if (!candidata.startsWith("MOTOS")
+            if (!candidata.startsWith("MOTO")
                     && !candidata.startsWith("CAMPEROS")
                     && !candidata.startsWith("AUTOS")
                     && !candidata.startsWith("VEHICULO PARA")
@@ -165,22 +311,36 @@ public class PdfExtractorService {
         return null;
     }
 
-    private String extraerMarcaAxa(String upper) {
-        if (upper.contains("KIA")) return "KIA";
-        if (upper.contains("TVS")) return "TVS";
-
-        Pattern patronMarca = Pattern.compile("\\bMARCA\\b\\s*:?\\s*([A-Z0-9\\-]{2,20})\\b");
-        Matcher matcherMarca = patronMarca.matcher(upper);
-        while (matcherMarca.find()) {
-            String candidata = matcherMarca.group(1).trim();
-            if (!candidata.equals("VEHICULO") && !candidata.equals("LINEA") && !candidata.equals("CLASE")) {
+    private String extraerLineaMundial(String upper) {
+        Pattern patronLinea = Pattern.compile(
+                "(?:LINEA\\s+VEHICULO|LINEA)\\s*:?\\s*([A-Z0-9\\s\\-]{2,35}?)(?=\\s+(?:NO\\.?\\s*MOTOR|NO\\.?\\s*CHASIS|NO\\.?\\s*VIN|CARROCERIA|CAPACIDAD|APELLIDOS|TOMADOR|CILINDRAJE|MODELO|$))"
+        );
+        Matcher matcherLinea = patronLinea.matcher(upper);
+        while (matcherLinea.find()) {
+            String candidata = matcherLinea.group(1).trim().replaceFirst("^VIHICULO\\s+", "");
+            if (!candidata.startsWith("VEHICULO") && !candidata.equals("DE VEHICULO")) {
                 return candidata;
             }
         }
         return null;
     }
 
+    private String extraerMarcaAxa(String upper) {
+        Matcher mMarca = Pattern.compile("\\bMARCA\\b\\s*:?\\s*([A-Z0-9\\-]{2,20})\\b").matcher(upper);
+        while (mMarca.find()) {
+            String cand = mMarca.group(1).trim();
+            if (!cand.equals("VEHICULO") && !cand.equals("LINEA") && !cand.equals("CLASE")) {
+                return cand;
+            }
+        }
+        if (upper.contains("TVS SPORT")) return "TVS";
+        if (upper.contains("KIA")) return "KIA";
+        if (upper.contains("TVS")) return "TVS";
+        return null;
+    }
+
     private String extraerLineaAxa(String upper) {
+        if (upper.contains("TVS SPORT")) return "TVS SPORT";
         if (upper.contains("PICANTO EX")) return "PICANTO EX";
         if (upper.contains("RAIDER 125 FI")) return "RAIDER 125 FI";
 
@@ -280,7 +440,7 @@ public class PdfExtractorService {
 
     private void extraerDocumento(String upper, Poliza poliza) {
         Pattern patronTipoDoc = Pattern.compile(
-                "TIPO\\s+DE\\s*DOCUMENT\\s*O\\s*(?:DEL\\s+TOMADOR)?\\s*:?\\s*\\b(CC|CE|TI|NIT|PA)\\b"
+                "TIPO\\s*(?:DE)?\\s*DOCUMENT\\s*O(?:\\s+DEL\\s+TOMADOR)?\\s*:?\\s*\\b(CC|CE|TI|NIT|PA)\\b"
         );
         Matcher matcherTipoDoc = patronTipoDoc.matcher(upper);
         if (matcherTipoDoc.find()) {
@@ -288,22 +448,40 @@ public class PdfExtractorService {
         }
 
         Pattern patronDocNum = Pattern.compile(
-                "(?:No\\.?|NRO\\.?|NUMERO)\\s*DE\\s*DOCUMENT\\s*O\\s*(?:DEL\\s+TOMADOR)?\\s*:?\\s*\\b(\\d{6,12})\\b"
+                "(?:NO\\.?|NRO\\.?|NUMERO)\\s*(?:DE)?\\s*DOCUMENT\\s*O(?:\\s+DEL\\s+TOMADOR)?\\s*:?\\s*(?:\\b(?:CC|CE|TI|NIT|PA)\\b\\s*)?\\b(\\d{6,11})\\b"
         );
         Matcher matcherDocNum = patronDocNum.matcher(upper);
-        if (matcherDocNum.find()) {
-            poliza.setDocumento(Long.parseLong(matcherDocNum.group(1)));
-            if (poliza.getTipoDocumento() == null) {
-                poliza.setTipoDocumento("CC");
+        while (matcherDocNum.find()) {
+            String candidato = matcherDocNum.group(1);
+            if (!esNumeroPolizaOFormulario(upper, candidato)) {
+                poliza.setDocumento(Long.parseLong(candidato));
+                if (poliza.getTipoDocumento() == null) {
+                    poliza.setTipoDocumento("CC");
+                }
+                return;
             }
-            return;
+        }
+
+        Pattern patronTipoYNum = Pattern.compile(
+                "\\b(CC|CE|TI|NIT|PA)\\b\\s*:?\\s*\\b(\\d{6,11})\\b"
+        );
+        Matcher matcherTipoYNum = patronTipoYNum.matcher(upper);
+        while (matcherTipoYNum.find()) {
+            String candidato = matcherTipoYNum.group(2);
+            if (!esNumeroPolizaOFormulario(upper, candidato)) {
+                if (poliza.getTipoDocumento() == null) {
+                    poliza.setTipoDocumento(matcherTipoYNum.group(1));
+                }
+                poliza.setDocumento(Long.parseLong(candidato));
+                return;
+            }
         }
 
         Pattern patronCedula = Pattern.compile("(?<!\\$)\\b([1-9]\\d{6,9})\\b");
         Matcher matcherCedula = patronCedula.matcher(upper);
         while (matcherCedula.find()) {
             String num = matcherCedula.group(1);
-            if (num.length() >= 7 && num.length() <= 10) {
+            if (num.length() >= 7 && num.length() <= 10 && !esNumeroPolizaOFormulario(upper, num)) {
                 poliza.setDocumento(Long.parseLong(num));
                 if (poliza.getTipoDocumento() == null) {
                     poliza.setTipoDocumento("CC");
@@ -311,6 +489,12 @@ public class PdfExtractorService {
                 break;
             }
         }
+    }
+
+    private boolean esNumeroPolizaOFormulario(String upper, String numero) {
+        return Pattern.compile(
+                "(?:NO\\.\\s*DE\\s*POLIZA|NO\\.\\s*FORMULARIO|FORMULARIO)[^\\d]{0,25}" + Pattern.quote(numero) + "\\b"
+        ).matcher(upper).find();
     }
 
     private void extraerFechasVigencia(String upper, Poliza poliza, boolean priorizarColumnas) {
@@ -356,7 +540,7 @@ public class PdfExtractorService {
                 }
             }
 
-            Matcher mSinComa = Pattern.compile("^([A-ZÑ]{2,}(?:\\s+[A-ZÑ]{2,}){1,3})\\b")
+            Matcher mSinComa = Pattern.compile("^([A-ZÑ]{2,}(?:\\s+[A-ZÑ]{2,}){1,4})\\b")
                     .matcher(bloqueNombre);
             if (mSinComa.find()) {
                 String cand = limpiarPrefijoTomador(normalizarNombre(mSinComa.group(1)));
@@ -404,7 +588,11 @@ public class PdfExtractorService {
             "RENOVAR", "RECOMENDACIONES", "ACCIDENTE", "RESULTA", "HERIDO", "DEBE",
             "SER", "ATENDIDO", "PRESTADOR", "SALUD", "CASO", "CONTRARIO", "DENUNCIE",
             "SUPERINTENDENCIA", "PARA", "QUE", "CONSULTE", "ALMACENE", "ADMINISTRE",
-            "AUTORIZO", "SEGUROS"
+            "AUTORIZO", "SEGUROS", "MUNDIAL", "ASEGURADORA", "RESIDENCIA", "EXPEDICION",
+            "CODIGO", "CLAVE", "PRODUCTOR", "SUCURSAL", "EXPEDIDORA", "CALI", "BOGOTA",
+            "MEDELLIN", "BARRANQUILLA", "CARTAGENA", "ARMENIA", "PEREIRA",
+            "MOTOR", "CHASIS", "SERIE", "VIN", "CARROCERIA", "SEDAN", "PASAJEROS",
+            "CILINDRAJE", "MODELO", "PLACA", "SERVICIO", "CLASE", "LINEA", "MARCA"
         };
         for (String p : prohibidas) {
             if (texto.contains(p)) {
@@ -463,17 +651,20 @@ public class PdfExtractorService {
     }
 
     private void extraerTipoVehiculo(String upper, Poliza poliza) {
-        // 1. Subtipos específicos primero para evitar falsos positivos
-        if (upper.contains("INTERMUNICIPAL")) {
-            poliza.setTipoVehiculo("INTERMUNICIPAL");
-            return;
-        }
         if (upper.contains("MOTOCARRO") || upper.contains("TRICIMOTO") || upper.contains("CUADRICICLO")) {
             poliza.setTipoVehiculo("MOTOCARRO");
             return;
         }
         if (upper.contains("CICLOMOTOR")) {
             poliza.setTipoVehiculo("CICLOMOTOR");
+            return;
+        }
+        if (Pattern.compile("\\bMOTOS?\\b").matcher(upper).find()) {
+            poliza.setTipoVehiculo("MOTO");
+            return;
+        }
+        if (upper.contains("INTERMUNICIPAL")) {
+            poliza.setTipoVehiculo("INTERMUNICIPAL");
             return;
         }
         if (upper.contains("VEHICULO PARA 6 O MAS")
@@ -490,7 +681,7 @@ public class PdfExtractorService {
             poliza.setTipoVehiculo("CAMPEROS Y CAMIONETAS");
             return;
         }
-        if (upper.contains("CARGA O MIXTO") || upper.contains("CARGA") || upper.contains("MIXTO")) {
+        if (upper.contains("CARGA O MIXTO")) {
             poliza.setTipoVehiculo("CARGA O MIXTO");
             return;
         }
@@ -506,7 +697,7 @@ public class PdfExtractorService {
             poliza.setTipoVehiculo("BUSETA");
             return;
         }
-        if (upper.contains("BUS")) {
+        if (Pattern.compile("\\bBUS\\b").matcher(upper).find()) {
             poliza.setTipoVehiculo("BUS");
             return;
         }
@@ -520,10 +711,6 @@ public class PdfExtractorService {
         }
         if (upper.contains("AUTOMOVIL")) {
             poliza.setTipoVehiculo("AUTOMOVIL");
-            return;
-        }
-        if (upper.contains("MOTO")) {
-            poliza.setTipoVehiculo("MOTO");
         }
     }
 
